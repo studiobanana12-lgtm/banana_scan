@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>🍌 바나나 스캔</title>
 <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
@@ -509,8 +510,14 @@ input:focus { border-color: var(--yellow); }
 
     <!-- 스캔 탭 -->
     <div class="screen active" id="screen-scan">
-      <div class="section-title">바코드 스캔</div>
-      <div class="section-sub">카메라로 바코드를 비춰주세요</div>
+      <div class="section-title">바코드·QR 스캔</div>
+      <div class="section-sub">카메라로 바코드 또는 QR코드를 비춰주세요</div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-secondary" id="mode-barcode" onclick="setScanMode('barcode')" style="flex:1;padding:10px;font-size:13px;border-color:var(--yellow);color:var(--yellow)">바코드</button>
+        <button class="btn btn-secondary" id="mode-qr" onclick="setScanMode('qr')" style="flex:1;padding:10px;font-size:13px">QR코드</button>
+        <button class="btn btn-secondary" id="mode-both" onclick="setScanMode('both')" style="flex:1;padding:10px;font-size:13px">자동감지</button>
+      </div>
 
       <div class="cam-wrap" id="cam-wrap">
         <div id="interactive"></div>
@@ -749,12 +756,30 @@ input:focus { border-color: var(--yellow); }
       <div class="section-sub">앱 환경을 설정해요</div>
 
       <div class="card">
+        <div class="card-title">Gemini 모델 선택</div>
+        <div class="input-group">
+          <div class="input-label">AI 분석에 사용할 모델</div>
+          <select id="gemini-model" style="width:100%;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;padding:12px 14px;font-size:14px;color:var(--text);outline:none;-webkit-appearance:none">
+            <option value="gemini-2.5-flash-lite-preview-06-17">2.5 Flash Lite ★ 기본 (빠름·저렴)</option>
+            <option value="gemini-2.5-flash">2.5 Flash · 균형 (추천)</option>
+            <option value="gemini-2.5-pro">2.5 Pro (고품질)</option>
+            <option value="gemini-2.0-flash">2.0 Flash (안정)</option>
+            <option value="gemini-2.0-flash-lite">2.0 Flash Lite (초경량)</option>
+          </select>
+        </div>
+        <button class="btn btn-secondary" onclick="saveModel()" style="margin-top:8px">모델 저장</button>
+      </div>
+
+      <div class="card">
         <div class="card-title">Gemini API 키</div>
         <div class="input-group">
           <div class="input-label">AI 상품 인식에 필요해요</div>
           <input type="text" id="gemini-key-input" placeholder="AIza..." style="font-size:13px">
         </div>
-        <button class="btn btn-primary" onclick="saveApiKey()" style="margin-top:4px">저장</button>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+          <button class="btn btn-primary" id="api-key-btn" onclick="saveApiKey()" style="flex:1">저장 및 확인</button>
+          <span id="api-key-status" style="font-size:12px;color:var(--text3);white-space:nowrap">미확인</span>
+        </div>
       </div>
 
       <div class="card">
@@ -764,8 +789,9 @@ input:focus { border-color: var(--yellow); }
             <div class="setting-label">기본 마진율</div>
             <div class="setting-sub">새 상품 등록 시 적용</div>
           </div>
-          <div class="input-row" style="width:80px">
-            <input type="number" id="default-margin" value="30" style="text-align:center">
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+            <input type="number" id="default-margin" value="30" style="width:60px;text-align:center;background:var(--bg);border:0.5px solid var(--border);border-radius:6px;padding:6px 8px;font-size:14px;color:var(--text)">
+            <span style="font-size:13px;color:var(--text3)">%</span>
           </div>
         </div>
         <div class="setting-row">
@@ -822,12 +848,20 @@ input:focus { border-color: var(--yellow); }
 let isDark = true;
 let inventory = JSON.parse(localStorage.getItem('bn_inventory') || '[]');
 let geminiKey = localStorage.getItem('bn_gemini_key') || '';
+let geminiModel = localStorage.getItem('bn_gemini_model') || 'gemini-2.5-flash-lite-preview-06-17';
 let currentProduct = null;
 let scanActive = false;
+let scanMode = 'barcode'; // barcode | qr | both
+let zxingReader = null;
 
 // ===== 초기화 =====
 window.addEventListener('load', () => {
   document.getElementById('gemini-key-input').value = geminiKey;
+  if (geminiKey) {
+    document.getElementById('api-key-status').textContent = '저장됨 (미확인)';
+    document.getElementById('api-key-status').style.color = 'var(--yellow)';
+  }
+  document.getElementById('gemini-model').value = geminiModel;
   renderInventory();
   const saved = localStorage.getItem('bn_theme');
   if (saved === 'light') { isDark = false; applyTheme(); }
@@ -856,6 +890,17 @@ function switchTab(tab) {
 }
 
 // ===== 바코드 스캔 =====
+function setScanMode(mode) {
+  scanMode = mode;
+  document.getElementById('mode-barcode').style.borderColor = mode === 'barcode' ? 'var(--yellow)' : 'var(--border)';
+  document.getElementById('mode-barcode').style.color = mode === 'barcode' ? 'var(--yellow)' : 'var(--text2)';
+  document.getElementById('mode-qr').style.borderColor = mode === 'qr' ? 'var(--yellow)' : 'var(--border)';
+  document.getElementById('mode-qr').style.color = mode === 'qr' ? 'var(--yellow)' : 'var(--text2)';
+  document.getElementById('mode-both').style.borderColor = mode === 'both' ? 'var(--yellow)' : 'var(--border)';
+  document.getElementById('mode-both').style.color = mode === 'both' ? 'var(--yellow)' : 'var(--text2)';
+  if (scanActive) { stopScan(); startScan(); }
+}
+
 function startScan() {
   if (scanActive) return;
   scanActive = true;
@@ -863,16 +908,42 @@ function startScan() {
   document.getElementById('btn-scan-stop').style.display = 'flex';
   document.getElementById('scan-status').textContent = '카메라 시작 중...';
 
+  if (scanMode === 'qr' || scanMode === 'both') {
+    // ZXing으로 QR + 바코드 동시 인식
+    try {
+      const hints = new Map();
+      if (typeof ZXing !== 'undefined') {
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+        zxingReader = codeReader;
+        codeReader.decodeFromConstraints(
+          { video: { facingMode: 'environment' } },
+          document.querySelector('#interactive video') || (() => {
+            const v = document.createElement('video');
+            v.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            document.getElementById('interactive').appendChild(v);
+            return v;
+          })(),
+          (result, err) => {
+            if (result) {
+              if (navigator.vibrate) navigator.vibrate(200);
+              stopScan();
+              onBarcodeDetected(result.getText());
+            }
+          }
+        );
+        document.getElementById('scan-status').textContent = '스캔 중... 바코드 또는 QR을 비춰주세요';
+        return;
+      }
+    } catch(e) { console.log('ZXing fallback to Quagga'); }
+  }
+
+  // Quagga로 바코드 인식
   Quagga.init({
     inputStream: {
       name: 'Live',
       type: 'LiveStream',
       target: document.getElementById('interactive'),
-      constraints: {
-        facingMode: 'environment',
-        width: { min: 640 },
-        height: { min: 480 }
-      }
+      constraints: { facingMode: 'environment', width: { min: 640 }, height: { min: 480 } }
     },
     decoder: {
       readers: ['ean_reader', 'ean_8_reader', 'code_128_reader', 'code_39_reader', 'upc_reader', 'upc_e_reader']
@@ -900,24 +971,62 @@ function startScan() {
 
 function stopScan() {
   scanActive = false;
-  Quagga.stop();
+  try { Quagga.stop(); } catch(e) {}
+  try { if (zxingReader) { zxingReader.reset(); zxingReader = null; } } catch(e) {}
   document.getElementById('btn-scan-start').style.display = 'flex';
   document.getElementById('btn-scan-stop').style.display = 'none';
   document.getElementById('scan-status').textContent = '스캔 대기 중...';
 }
 
-function onBarcodeDetected(code) {
+async function onBarcodeDetected(code) {
   document.getElementById('scan-status').textContent = '인식됨: ' + code;
   document.getElementById('scan-status').className = 'scan-status detected';
   document.getElementById('scan-barcode-num').textContent = '바코드: ' + code;
   document.getElementById('scan-result').className = 'result-show';
-
-  // 네이버 쇼핑 검색 (CORS 우회 불가 → 바로 링크 제공)
-  document.getElementById('scan-product-name').textContent = code;
-  document.getElementById('scan-naver-price').innerHTML =
-    `<a href="https://search.shopping.naver.com/search/all?query=${code}" target="_blank" style="color:var(--yellow);font-size:13px">네이버에서 확인 →</a>`;
+  document.getElementById('scan-product-name').textContent = '조회 중...';
+  document.getElementById('scan-naver-price').textContent = '조회 중...';
 
   currentProduct = { barcode: code, name: code, source: 'scan' };
+
+  // Open Product Data API로 제품명 조회
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
+    const data = await res.json();
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+      const name = p.product_name_ko || p.product_name || p.brands || code;
+      const brand = p.brands || '';
+      document.getElementById('scan-product-name').textContent = name + (brand ? ` (${brand})` : '');
+      currentProduct.name = name;
+      currentProduct.brand = brand;
+    } else {
+      // Open Food Facts에 없으면 UPC 데이터베이스 시도
+      const res2 = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${code}`);
+      const data2 = await res2.json();
+      if (data2.items && data2.items.length > 0) {
+        const item = data2.items[0];
+        const name = item.title || code;
+        document.getElementById('scan-product-name').textContent = name;
+        currentProduct.name = name;
+        currentProduct.brand = item.brand || '';
+      } else {
+        document.getElementById('scan-product-name').textContent = '상품명을 직접 입력해주세요';
+        currentProduct.name = code;
+      }
+    }
+  } catch(e) {
+    document.getElementById('scan-product-name').textContent = '상품명을 직접 입력해주세요';
+  }
+
+  // 상품명 직접 수정 가능하게
+  document.getElementById('scan-product-name').contentEditable = 'true';
+  document.getElementById('scan-product-name').style.border = '0.5px dashed var(--border)';
+  document.getElementById('scan-product-name').style.padding = '4px 8px';
+  document.getElementById('scan-product-name').style.borderRadius = '4px';
+  document.getElementById('scan-product-name').title = '탭하여 수정 가능';
+
+  document.getElementById('scan-naver-price').innerHTML =
+    `<a href="https://search.shopping.naver.com/search/all?query=${encodeURIComponent(currentProduct.name || code)}" target="_blank" style="color:var(--yellow);font-size:13px">네이버 가격 확인 →</a>`;
 }
 
 function manualLookup() {
@@ -1003,7 +1112,7 @@ async function analyzeWithGemini(dataUrl) {
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1201,11 +1310,48 @@ function renderInventory() {
 }
 
 // ===== 설정 =====
-function saveApiKey() {
+async function saveApiKey() {
   const key = document.getElementById('gemini-key-input').value.trim();
-  localStorage.setItem('bn_gemini_key', key);
-  geminiKey = key;
-  showToast('API 키 저장됨');
+  if (!key) { showToast('API 키를 입력해주세요'); return; }
+  const btn = document.getElementById('api-key-btn');
+  const status = document.getElementById('api-key-status');
+  btn.textContent = '확인 중...';
+  btn.disabled = true;
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'hi' }] }] })
+      }
+    );
+    const data = await res.json();
+    if (data.error) {
+      showToast('❌ 키 오류: ' + (data.error.status || '키를 확인해주세요'));
+      status.textContent = '❌ 연결 실패';
+      status.style.color = 'var(--red)';
+    } else {
+      localStorage.setItem('bn_gemini_key', key);
+      geminiKey = key;
+      showToast('✅ Gemini 연결 성공!');
+      status.textContent = '✅ 연결됨';
+      status.style.color = 'var(--green)';
+    }
+  } catch(e) {
+    showToast('❌ 네트워크 오류');
+    status.textContent = '❌ 오류';
+    status.style.color = 'var(--red)';
+  }
+  btn.textContent = '저장 및 확인';
+  btn.disabled = false;
+}
+
+function saveModel() {
+  const model = document.getElementById('gemini-model').value;
+  localStorage.setItem('bn_gemini_model', model);
+  geminiModel = model;
+  showToast('✅ 모델 저장됨');
 }
 
 function clearInventory() {
