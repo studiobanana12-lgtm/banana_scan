@@ -979,7 +979,8 @@ function buildScanCameraVideoConstraints() {
   if (deviceId) {
     video.deviceId = { exact: deviceId };
   } else {
-    video.facingMode = facing === 'user' ? 'user' : { ideal: 'environment' };
+    // Html5Qrcode는 facingMode로 { ideal: ... } 형태를 거부함 → 문자열만 사용
+    video.facingMode = facing === 'user' ? 'user' : 'environment';
   }
 
   if (quality === 'hd') {
