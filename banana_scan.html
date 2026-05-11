@@ -505,6 +505,57 @@ input:focus { border-color: var(--yellow); }
 }
 .setting-label { font-size: 14px; color: var(--text); }
 .setting-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+/* 스캔 카메라 설정 */
+.cam-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cam-settings-grid .input-label { margin-bottom: 4px; }
+.cam-settings-grid select {
+  width: 100%;
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  -webkit-appearance: none;
+}
+.cam-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cam-settings-row label {
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.cam-settings-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--yellow);
+}
+.cam-device-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.cam-device-actions .btn { padding: 8px 12px; font-size: 12px; margin-bottom: 0; }
+.cam-settings-hint {
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.45;
+  margin-top: 4px;
+}
 </style>
 </head>
 <body>
@@ -529,6 +580,43 @@ input:focus { border-color: var(--yellow); }
         <button class="btn btn-secondary" id="mode-barcode" onclick="setScanMode('barcode')" style="flex:1;padding:10px;font-size:13px;border-color:var(--yellow);color:var(--yellow)">바코드</button>
         <button class="btn btn-secondary" id="mode-qr" onclick="setScanMode('qr')" style="flex:1;padding:10px;font-size:13px">QR코드</button>
         <button class="btn btn-secondary" id="mode-both" onclick="setScanMode('both')" style="flex:1;padding:10px;font-size:13px">자동감지</button>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;padding:14px 16px">
+        <div class="card-title" style="margin-bottom:10px">카메라 설정</div>
+        <div class="cam-settings-grid">
+          <div class="input-group" style="margin-bottom:0">
+            <div class="input-label">카메라 방향</div>
+            <select id="cam-facing" onchange="onCamSettingChange()" aria-label="카메라 앞뒤">
+              <option value="environment">후면 (바코드 권장)</option>
+              <option value="user">전면</option>
+            </select>
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <div class="input-label">카메라 장치</div>
+            <select id="cam-device" onchange="onCamSettingChange()" aria-label="카메라 장치">
+              <option value="">시스템 기본 (위 방향 따름)</option>
+            </select>
+            <div class="cam-device-actions">
+              <button type="button" class="btn btn-secondary" onclick="refreshCameraDeviceList(true)">장치 목록 새로고침</button>
+            </div>
+            <p class="cam-settings-hint" id="cam-device-hint">권한 허용 후 목록에 모델명이 보일 수 있어요. 여러 렌즈가 있으면 여기서 바꿔 실험해 보세요.</p>
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <div class="input-label">화질 (해상도 힌트)</div>
+            <select id="cam-quality" onchange="onCamSettingChange()" aria-label="카메라 해상도">
+              <option value="auto">자동</option>
+              <option value="hd">HD · 1280×720 전후</option>
+              <option value="fhd">FHD · 1920×1080 전후</option>
+            </select>
+          </div>
+          <div class="cam-settings-row">
+            <label id="cam-torch-wrap">
+              <input type="checkbox" id="cam-torch" onchange="onTorchToggle()">
+              손전등 (토치) — 어두울 때 후면 카메라만
+            </label>
+          </div>
+        </div>
       </div>
 
       <div class="cam-wrap" id="cam-wrap">
@@ -872,6 +960,140 @@ let html5QrCode = null;
 let scanStarting = false;
 let scanMediaAbort = null;
 
+const BN_CAM = {
+  facing: 'bn_cam_facing',
+  device: 'bn_cam_device_id',
+  quality: 'bn_cam_quality',
+  torch: 'bn_cam_torch'
+};
+
+function buildScanCameraVideoConstraints() {
+  const facingEl = document.getElementById('cam-facing');
+  const deviceEl = document.getElementById('cam-device');
+  const qualityEl = document.getElementById('cam-quality');
+  const facing = (facingEl && facingEl.value) || 'environment';
+  const deviceId = (deviceEl && deviceEl.value && deviceEl.value.trim()) || '';
+  const quality = (qualityEl && qualityEl.value) || 'auto';
+
+  const video = {};
+  if (deviceId) {
+    video.deviceId = { exact: deviceId };
+  } else {
+    video.facingMode = facing === 'user' ? 'user' : { ideal: 'environment' };
+  }
+
+  if (quality === 'hd') {
+    video.width = { ideal: 1280 };
+    video.height = { ideal: 720 };
+  } else if (quality === 'fhd') {
+    video.width = { ideal: 1920 };
+    video.height = { ideal: 1080 };
+  }
+
+  return video;
+}
+
+function loadCamSettingsFromStorage() {
+  const facing = localStorage.getItem(BN_CAM.facing);
+  const device = localStorage.getItem(BN_CAM.device) || '';
+  const quality = localStorage.getItem(BN_CAM.quality);
+  const torch = localStorage.getItem(BN_CAM.torch);
+
+  const facingEl = document.getElementById('cam-facing');
+  const deviceEl = document.getElementById('cam-device');
+  const qualityEl = document.getElementById('cam-quality');
+  const torchEl = document.getElementById('cam-torch');
+  if (!facingEl || !deviceEl || !qualityEl || !torchEl) return;
+
+  if (facing === 'environment' || facing === 'user') facingEl.value = facing;
+  if (quality === 'auto' || quality === 'hd' || quality === 'fhd') qualityEl.value = quality;
+  torchEl.checked = torch === '1';
+  if (device) window.__bnCamPendingDeviceId = device;
+}
+
+function saveCamSettingsToStorage() {
+  const facingEl = document.getElementById('cam-facing');
+  const deviceEl = document.getElementById('cam-device');
+  const qualityEl = document.getElementById('cam-quality');
+  const torchEl = document.getElementById('cam-torch');
+  if (!facingEl || !deviceEl || !qualityEl || !torchEl) return;
+  localStorage.setItem(BN_CAM.facing, facingEl.value);
+  localStorage.setItem(BN_CAM.device, deviceEl.value || '');
+  localStorage.setItem(BN_CAM.quality, qualityEl.value);
+  localStorage.setItem(BN_CAM.torch, torchEl.checked ? '1' : '0');
+}
+
+function updateTorchUiState() {
+  const facingEl = document.getElementById('cam-facing');
+  const torchEl = document.getElementById('cam-torch');
+  if (!facingEl || !torchEl) return;
+  const isFrontDefault = facingEl.value === 'user';
+  torchEl.disabled = isFrontDefault;
+  if (isFrontDefault) {
+    torchEl.checked = false;
+    localStorage.setItem(BN_CAM.torch, '0');
+  }
+}
+
+async function refreshCameraDeviceList(showToastFlag) {
+  try {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== 'function') {
+      if (showToastFlag) showToast('이 환경에서는 장치 목록을 쓸 수 없어요');
+      return;
+    }
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter(d => d.kind === 'videoinput');
+    const sel = document.getElementById('cam-device');
+    if (!sel) return;
+    const prev = sel.value;
+    const pending = window.__bnCamPendingDeviceId;
+    sel.innerHTML = '<option value="">시스템 기본 (위 방향 따름)</option>';
+    videoInputs.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      const label = (d.label && d.label.trim()) ? d.label : ('카메라 ' + (i + 1));
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
+    const restore = pending || prev;
+    if (restore && [...sel.options].some(o => o.value === restore)) sel.value = restore;
+    if (pending && [...sel.options].some(o => o.value === pending)) {
+      window.__bnCamPendingDeviceId = null;
+    }
+    if (showToastFlag) {
+      showToast(videoInputs.length ? ('장치 ' + videoInputs.length + '개 불러옴') : '비디오 입력 없음');
+    }
+  } catch (e) {
+    if (showToastFlag) showToast('장치 목록을 불러오지 못했어요');
+  }
+}
+
+async function applyTorchFromUi() {
+  const torchEl = document.getElementById('cam-torch');
+  if (!torchEl || torchEl.disabled || !html5QrCode || !scanActive) return;
+  const want = torchEl.checked;
+  try {
+    if (typeof html5QrCode.applyVideoConstraints === 'function') {
+      await html5QrCode.applyVideoConstraints({ advanced: [{ torch: want }] });
+    }
+  } catch (_) { /* iOS는 미지원이거나 조용히 실패 */ }
+}
+
+function onTorchToggle() {
+  saveCamSettingsToStorage();
+  void applyTorchFromUi();
+}
+
+async function onCamSettingChange() {
+  updateTorchUiState();
+  saveCamSettingsToStorage();
+  if (scanActive) {
+    await stopScan();
+    await new Promise(r => setTimeout(r, 280));
+    await startScan();
+  }
+}
+
 // ===== 초기화 =====
 window.addEventListener('load', () => {
   const savedKey = localStorage.getItem('bn_gemini_key') || '';
@@ -886,6 +1108,9 @@ window.addEventListener('load', () => {
     statusEl.style.color = 'var(--text3)';
   }
   document.getElementById('gemini-model').value = geminiModel;
+  loadCamSettingsFromStorage();
+  updateTorchUiState();
+  void refreshCameraDeviceList(false);
   renderInventory();
   const saved = localStorage.getItem('bn_theme');
   if (saved === 'light') { isDark = false; applyTheme(); }
@@ -996,8 +1221,9 @@ async function startScan() {
     let permissionStream = null;
     scanMediaAbort = new AbortController();
     try {
+      const videoConstraints = buildScanCameraVideoConstraints();
       permissionStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+        video: videoConstraints,
         audio: false,
         signal: scanMediaAbort.signal
       });
@@ -1029,6 +1255,8 @@ async function startScan() {
     }
     scanMediaAbort = null;
 
+    void refreshCameraDeviceList(false);
+
     scanActive = true;
     container.innerHTML = '<div id="qr-reader" style="width:100%;height:100%;min-height:200px"></div>';
 
@@ -1055,8 +1283,9 @@ async function startScan() {
     }
 
     try {
+      const cameraConfig = buildScanCameraVideoConstraints();
       await html5QrCode.start(
-        { facingMode: 'environment' },
+        cameraConfig,
         config,
         (decodedText) => {
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
@@ -1065,6 +1294,8 @@ async function startScan() {
         },
         () => {}
       );
+      saveCamSettingsToStorage();
+      await applyTorchFromUi();
       document.getElementById('scan-status').textContent =
         scanMode === 'qr' ? 'QR코드를 비춰주세요' :
         scanMode === 'both' ? '바코드 또는 QR을 비춰주세요' :
@@ -1094,6 +1325,11 @@ async function stopScan() {
     scanMediaAbort = null;
   }
   scanActive = false;
+  try {
+    if (html5QrCode && typeof html5QrCode.applyVideoConstraints === 'function') {
+      await html5QrCode.applyVideoConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+    }
+  } catch (_) {}
   try {
     if (html5QrCode) {
       await html5QrCode.stop().catch(() => {});
