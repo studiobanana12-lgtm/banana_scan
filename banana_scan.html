@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>🍌 바나나 스캔</title>
+<script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+:root {
+  --bg: #0d0d1a;
+  --bg2: #111118;
+  --bg3: #1a1a2e;
+  --bg4: #2a2a3e;
+  --yellow: #f5c518;
+  --yellow2: #c8a000;
+  --text: #ffffff;
+  --text2: #aaaaaa;
+  --text3: #666666;
+  --green: #4caf50;
+  --red: #ff6b6b;
+  --border: #2a2a3e;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+.light {
+  --bg: #f0f0e8;
+  --bg2: #ffffff;
+  --bg3: #f7f7f0;
+  --bg4: #e8e8e0;
+  --yellow: #c8a000;
+  --yellow2: #a07800;
+  --text: #111111;
+  --text2: #555555;
+  --text3: #999999;
+  --green: #2e7d32;
+  --red: #c62828;
+  --border: #e0e0d8;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'Noto Sans KR', sans-serif;
+  overflow: hidden;
+}
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--bg2);
+  position: relative;
+}
+
+/* 헤더 */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  background: var(--bg2);
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+.header-logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--yellow);
+  letter-spacing: -0.5px;
+}
+.header-logo span { color: var(--text); font-weight: 400; font-size: 14px; }
+.theme-btn {
+  background: var(--bg3);
+  border: 0.5px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.theme-btn:active { transform: scale(0.96); }
+
+/* 탭 컨텐츠 */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.screen { display: none; padding: 16px; }
+.screen.active { display: block; }
+
+/* 탭바 */
+.tabbar {
+  display: flex;
+  background: var(--bg2);
+  border-top: 0.5px solid var(--border);
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab svg { width: 22px; height: 22px; stroke: var(--text3); transition: stroke 0.2s; }
+.tab span { font-size: 10px; color: var(--text3); margin-top: 3px; transition: color 0.2s; }
+.tab.active svg { stroke: var(--yellow); }
+.tab.active span { color: var(--yellow); }
+.tab:active { opacity: 0.7; }
+
+/* 카드 */
+.card {
+  background: var(--bg3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.card-title {
+  font-size: 11px;
+  color: var(--yellow);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 카메라 뷰 */
+.cam-wrap {
+  position: relative;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  aspect-ratio: 1;
+  margin-bottom: 12px;
+}
+#cam-view {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#interactive { width: 100%; height: 100%; }
+#interactive video { width: 100%; height: 100%; object-fit: cover; }
+#interactive canvas { display: none; }
+.cam-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.cam-frame {
+  width: 65%;
+  aspect-ratio: 1.8;
+  position: relative;
+}
+.cam-frame::before,
+.cam-frame::after,
+.cam-frame .br::before,
+.cam-frame .br::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--yellow);
+  border-style: solid;
+}
+.cam-frame::before { top: 0; left: 0; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+.cam-frame::after { top: 0; right: 0; border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
+.cam-frame .br::before { bottom: 0; left: 0; border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
+.cam-frame .br::after { bottom: 0; right: 0; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+.scan-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--yellow), transparent);
+  animation: scanMove 2s ease-in-out infinite;
+}
+@keyframes scanMove {
+  0%, 100% { top: 10%; opacity: 0.4; }
+  50% { top: 85%; opacity: 1; }
+}
+.cam-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+}
+
+/* 버튼 */
+.btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--yellow); color: #0d0d1a; }
+.btn-secondary {
+  background: var(--bg3);
+  border: 0.5px solid var(--border);
+  color: var(--text2);
+}
+.btn-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.btn-row .btn { flex: 1; padding: 12px; font-size: 14px; }
+
+/* 결과 카드 */
+.result-hidden { display: none; }
+.result-show { display: block; }
+.product-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.product-sub {
+  font-size: 13px;
+  color: var(--text3);
+  margin-bottom: 14px;
+}
+.price-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.price-box {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  border: 0.5px solid var(--border);
+}
+.price-label { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+.price-value { font-size: 16px; font-weight: 700; color: var(--yellow); }
+.price-value.green { color: var(--green); }
+
+/* 입력 */
+.input-group { margin-bottom: 12px; }
+.input-label { font-size: 12px; color: var(--text3); margin-bottom: 6px; }
+.input-row { display: flex; gap: 8px; align-items: center; }
+input[type="number"], input[type="text"] {
+  flex: 1;
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+input:focus { border-color: var(--yellow); }
+.input-suffix {
+  font-size: 14px;
+  color: var(--text3);
+  white-space: nowrap;
+}
+.margin-badge {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(76,175,80,0.15);
+  border: 0.5px solid rgba(76,175,80,0.3);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--green);
+  font-weight: 600;
+}
+
+/* 사진 업로드 영역 */
+.photo-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 12px;
+  position: relative;
+}
+.photo-zone:active { border-color: var(--yellow); background: var(--bg3); }
+.photo-zone svg { width: 40px; height: 40px; stroke: var(--text3); margin-bottom: 10px; }
+.photo-zone p { font-size: 14px; color: var(--text3); }
+.photo-zone p.sub { font-size: 12px; margin-top: 4px; color: var(--text3); opacity: 0.6; }
+#photo-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.photo-preview {
+  width: 100%;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  display: none;
+  position: relative;
+}
+.photo-preview img {
+  width: 100%;
+  border-radius: var(--radius);
+  max-height: 200px;
+  object-fit: cover;
+}
+.photo-preview .retake {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.6);
+  border: none;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* AI 분석 */
+.ai-rows { display: flex; flex-direction: column; gap: 8px; }
+.ai-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.ai-row:last-child { border-bottom: none; }
+.ai-key { font-size: 13px; color: var(--text3); }
+.ai-val { font-size: 13px; color: var(--text); font-weight: 500; text-align: right; max-width: 60%; }
+
+/* 바코드 생성 */
+.barcode-wrap {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.barcode-wrap canvas, .barcode-wrap svg { max-width: 100%; }
+.barcode-num {
+  font-size: 13px;
+  color: #333;
+  margin-top: 8px;
+  font-family: monospace;
+}
+.qr-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+}
+
+/* 재고 리스트 */
+.inv-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  transition: all 0.2s;
+}
+.inv-item:active { opacity: 0.8; }
+.inv-left {}
+.inv-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.inv-code { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.inv-right { text-align: right; }
+.inv-price { font-size: 14px; font-weight: 700; color: var(--yellow); }
+.inv-stock { font-size: 11px; color: var(--green); margin-top: 2px; }
+.inv-stock.low { color: var(--red); }
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text3);
+}
+.empty-state svg { width: 48px; height: 48px; stroke: var(--text3); opacity: 0.4; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+
+/* 로딩 */
+.loading {
+  display: none;
+  text-align: center;
+  padding: 30px;
+}
+.loading.show { display: block; }
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--yellow);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading p { font-size: 13px; color: var(--text3); }
+
+/* 토스트 */
+.toast {
+  position: fixed;
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--yellow);
+  color: #0d0d1a;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: all 0.3s;
+  white-space: nowrap;
+  z-index: 100;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 스캔 상태 표시 */
+.scan-status {
+  text-align: center;
+  padding: 10px;
+  font-size: 13px;
+  color: var(--text3);
+  margin-bottom: 8px;
+}
+.scan-status.detected { color: var(--yellow); font-weight: 600; }
+
+/* Gemini API 키 설정 */
+.api-notice {
+  background: rgba(245,197,24,0.08);
+  border: 0.5px solid rgba(245,197,24,0.3);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--yellow);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+/* 섹션 타이틀 */
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.section-sub {
+  font-size: 13px;
+  color: var(--text3);
+  margin-bottom: 16px;
+}
+
+/* 설정 */
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--bg3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+.setting-label { font-size: 14px; color: var(--text); }
+.setting-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- 헤더 -->
+  <div class="header">
+    <div class="header-logo">🍌 바나나 <span>스캔</span></div>
+    <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">☀️ 라이트</button>
+  </div>
+
+  <!-- 컨텐츠 -->
+  <div class="content">
+
+    <!-- 스캔 탭 -->
+    <div class="screen active" id="screen-scan">
+      <div class="section-title">바코드 스캔</div>
+      <div class="section-sub">카메라로 바코드를 비춰주세요</div>
+
+      <div class="cam-wrap" id="cam-wrap">
+        <div id="interactive"></div>
+        <div class="cam-overlay">
+          <div class="cam-frame">
+            <div class="br"></div>
+            <div class="scan-line"></div>
+          </div>
+        </div>
+        <div class="cam-hint">바코드를 프레임 안에 맞춰주세요</div>
+      </div>
+
+      <div class="scan-status" id="scan-status">스캔 대기 중...</div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="startScan()" id="btn-scan-start">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:18px;height:18px;stroke:currentColor"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+          스캔 시작
+        </button>
+        <button class="btn btn-secondary" onclick="stopScan()" id="btn-scan-stop" style="display:none">
+          중지
+        </button>
+      </div>
+
+      <!-- 스캔 결과 -->
+      <div id="scan-result" class="result-hidden">
+        <div class="card">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:14px;height:14px;stroke:currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            인식된 상품
+          </div>
+          <div class="product-name" id="scan-product-name">-</div>
+          <div class="product-sub" id="scan-barcode-num">바코드: -</div>
+
+          <div class="price-grid">
+            <div class="price-box">
+              <div class="price-label">네이버 최저가</div>
+              <div class="price-value" id="scan-naver-price">조회 중...</div>
+            </div>
+            <div class="price-box">
+              <div class="price-label">매입가 입력</div>
+              <input type="number" id="scan-buy-price" placeholder="0" style="margin-top:2px" onchange="calcMargin('scan')">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">마진율</div>
+            <div class="input-row">
+              <input type="number" id="scan-margin" value="30" onchange="calcMargin('scan')">
+              <span class="input-suffix">%</span>
+              <div class="margin-badge" id="scan-margin-badge">수익 -</div>
+            </div>
+          </div>
+
+          <div class="price-box" style="margin-bottom:14px">
+            <div class="price-label">판매가 (자동계산)</div>
+            <div class="price-value green" id="scan-sell-price">매입가를 입력하세요</div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="resetScan()">다시 스캔</button>
+            <button class="btn btn-primary" onclick="registerFromScan()">재고 등록</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 수동 입력 -->
+      <div class="card">
+        <div class="card-title">직접 입력</div>
+        <div class="input-group">
+          <div class="input-label">바코드 번호</div>
+          <div class="input-row">
+            <input type="text" id="manual-barcode" placeholder="바코드 번호 입력">
+            <button class="btn btn-primary" style="width:auto;padding:12px 16px;font-size:13px" onclick="manualLookup()">조회</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 촬영 탭 -->
+    <div class="screen" id="screen-photo">
+      <div class="section-title">AI 상품 인식</div>
+      <div class="section-sub">사진을 찍으면 AI가 상품을 분석해요</div>
+
+      <div class="api-notice">
+        💡 Gemini API 키가 필요해요. 설정 탭에서 입력해주세요.
+      </div>
+
+      <!-- 사진 업로드 -->
+      <div class="photo-zone" id="photo-zone">
+        <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="handlePhoto(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <p>카메라로 촬영하기</p>
+        <p class="sub">또는 갤러리에서 선택</p>
+      </div>
+
+      <!-- 사진 미리보기 -->
+      <div class="photo-preview" id="photo-preview">
+        <img id="preview-img" src="" alt="상품 사진">
+        <button class="retake" onclick="retakePhoto()">다시 찍기</button>
+      </div>
+
+      <!-- 로딩 -->
+      <div class="loading" id="ai-loading">
+        <div class="spinner"></div>
+        <p>AI가 상품을 분석하고 있어요...</p>
+      </div>
+
+      <!-- AI 결과 -->
+      <div id="ai-result" class="result-hidden">
+        <div class="card">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:14px;height:14px;stroke:currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            AI 분석 결과
+          </div>
+          <div class="ai-rows">
+            <div class="ai-row">
+              <span class="ai-key">상품명</span>
+              <span class="ai-val" id="ai-name">-</span>
+            </div>
+            <div class="ai-row">
+              <span class="ai-key">브랜드</span>
+              <span class="ai-val" id="ai-brand">-</span>
+            </div>
+            <div class="ai-row">
+              <span class="ai-key">카테고리</span>
+              <span class="ai-val" id="ai-category">-</span>
+            </div>
+            <div class="ai-row">
+              <span class="ai-key">규격/모델</span>
+              <span class="ai-val" id="ai-spec">-</span>
+            </div>
+            <div class="ai-row">
+              <span class="ai-key">네이버 최저가</span>
+              <span class="ai-val" id="ai-naver-price" style="color:var(--yellow)">조회 중...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">가격 설정</div>
+          <div class="price-grid">
+            <div class="input-group" style="margin:0">
+              <div class="input-label">매입가</div>
+              <input type="number" id="ai-buy-price" placeholder="0" onchange="calcMargin('ai')">
+            </div>
+            <div class="input-group" style="margin:0">
+              <div class="input-label">마진율 %</div>
+              <input type="number" id="ai-margin" value="30" onchange="calcMargin('ai')">
+            </div>
+          </div>
+          <div class="price-box" style="margin-top:10px">
+            <div class="price-label">판매가 (자동계산)</div>
+            <div class="price-value green" id="ai-sell-price">매입가를 입력하세요</div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="retakePhoto()">다시 촬영</button>
+          <button class="btn btn-primary" onclick="generateBarcode()">바코드 생성</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 생성 탭 -->
+    <div class="screen" id="screen-barcode">
+      <div class="section-title">바코드 생성</div>
+      <div class="section-sub">상품 등록 후 라벨을 출력하세요</div>
+
+      <div id="barcode-empty" class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="12"/></svg>
+        <p>스캔 또는 촬영 탭에서<br>상품을 먼저 등록해주세요</p>
+      </div>
+
+      <div id="barcode-content" class="result-hidden">
+        <div class="card">
+          <div class="card-title">바코드</div>
+          <div class="barcode-wrap">
+            <svg id="barcode-svg"></svg>
+            <div class="barcode-num" id="barcode-display-num"></div>
+            <div style="font-size:12px;color:#666;margin-top:4px" id="barcode-display-name"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">QR 코드</div>
+          <div class="qr-wrap">
+            <canvas id="qr-canvas"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">상품 정보 확인</div>
+          <div class="ai-rows">
+            <div class="ai-row">
+              <span class="ai-key">상품명</span>
+              <span class="ai-val" id="bc-name">-</span>
+            </div>
+            <div class="ai-row">
+              <span class="ai-key">바코드</span>
+              <span class="ai-val" id="bc-code">-</span>
+            </div>
+            <div class="ai-row">
+              <span class="ai-key">판매가</span>
+              <span class="ai-val" style="color:var(--yellow)" id="bc-price">-</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="printBarcode()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:16px;height:16px;stroke:currentColor"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            인쇄
+          </button>
+          <button class="btn btn-primary" onclick="saveToInventory()">재고 저장</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 재고 탭 -->
+    <div class="screen" id="screen-inventory">
+      <div class="section-title">재고 현황</div>
+      <div class="section-sub" id="inv-count">등록된 상품 0개</div>
+
+      <div id="inv-list"></div>
+
+      <div id="inv-empty" class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        <p>등록된 재고가 없어요<br>스캔 또는 촬영으로 추가하세요</p>
+      </div>
+    </div>
+
+    <!-- 설정 탭 -->
+    <div class="screen" id="screen-settings">
+      <div class="section-title">설정</div>
+      <div class="section-sub">앱 환경을 설정해요</div>
+
+      <div class="card">
+        <div class="card-title">Gemini API 키</div>
+        <div class="input-group">
+          <div class="input-label">AI 상품 인식에 필요해요</div>
+          <input type="text" id="gemini-key-input" placeholder="AIza..." style="font-size:13px">
+        </div>
+        <button class="btn btn-primary" onclick="saveApiKey()" style="margin-top:4px">저장</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">기본 설정</div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">기본 마진율</div>
+            <div class="setting-sub">새 상품 등록 시 적용</div>
+          </div>
+          <div class="input-row" style="width:80px">
+            <input type="number" id="default-margin" value="30" style="text-align:center">
+          </div>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">테마</div>
+            <div class="setting-sub" id="theme-status">다크 모드</div>
+          </div>
+          <button class="theme-btn" onclick="toggleTheme()">전환</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">데이터</div>
+        <button class="btn btn-secondary" onclick="clearInventory()" style="margin-bottom:8px">재고 전체 삭제</button>
+        <div style="font-size:11px;color:var(--text3);text-align:center">저장된 데이터는 이 기기에만 보관됩니다</div>
+      </div>
+
+      <div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">
+        🍌 바나나 스캔 v1.0<br>BANANA INC.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 탭바 -->
+  <div class="tabbar">
+    <div class="tab active" onclick="switchTab('scan')" id="tab-scan">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="12"/></svg>
+      <span>스캔</span>
+    </div>
+    <div class="tab" onclick="switchTab('photo')" id="tab-photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>촬영</span>
+    </div>
+    <div class="tab" onclick="switchTab('barcode')" id="tab-barcode">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3z"/><path d="M17 17h4"/><path d="M17 21v-4"/><path d="M21 14v3"/></svg>
+      <span>생성</span>
+    </div>
+    <div class="tab" onclick="switchTab('inventory')" id="tab-inventory">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      <span>재고</span>
+    </div>
+    <div class="tab" onclick="switchTab('settings')" id="tab-settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <span>설정</span>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ===== 상태 =====
+let isDark = true;
+let inventory = JSON.parse(localStorage.getItem('bn_inventory') || '[]');
+let geminiKey = localStorage.getItem('bn_gemini_key') || '';
+let currentProduct = null;
+let scanActive = false;
+
+// ===== 초기화 =====
+window.addEventListener('load', () => {
+  document.getElementById('gemini-key-input').value = geminiKey;
+  renderInventory();
+  const saved = localStorage.getItem('bn_theme');
+  if (saved === 'light') { isDark = false; applyTheme(); }
+});
+
+// ===== 테마 =====
+function toggleTheme() {
+  isDark = !isDark;
+  applyTheme();
+  localStorage.setItem('bn_theme', isDark ? 'dark' : 'light');
+}
+function applyTheme() {
+  document.getElementById('app').className = isDark ? 'app' : 'app light';
+  document.getElementById('theme-btn').textContent = isDark ? '☀️ 라이트' : '🌙 다크';
+  document.getElementById('theme-status').textContent = isDark ? '다크 모드' : '라이트 모드';
+}
+
+// ===== 탭 전환 =====
+function switchTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab !== 'scan' && scanActive) stopScan();
+  if (tab === 'inventory') renderInventory();
+}
+
+// ===== 바코드 스캔 =====
+function startScan() {
+  if (scanActive) return;
+  scanActive = true;
+  document.getElementById('btn-scan-start').style.display = 'none';
+  document.getElementById('btn-scan-stop').style.display = 'flex';
+  document.getElementById('scan-status').textContent = '카메라 시작 중...';
+
+  Quagga.init({
+    inputStream: {
+      name: 'Live',
+      type: 'LiveStream',
+      target: document.getElementById('interactive'),
+      constraints: {
+        facingMode: 'environment',
+        width: { min: 640 },
+        height: { min: 480 }
+      }
+    },
+    decoder: {
+      readers: ['ean_reader', 'ean_8_reader', 'code_128_reader', 'code_39_reader', 'upc_reader', 'upc_e_reader']
+    },
+    locate: true
+  }, err => {
+    if (err) {
+      showToast('카메라 접근 오류: ' + err.message);
+      stopScan();
+      return;
+    }
+    Quagga.start();
+    document.getElementById('scan-status').textContent = '스캔 중... 바코드를 비춰주세요';
+  });
+
+  Quagga.onDetected(result => {
+    const code = result.codeResult.code;
+    if (code) {
+      if (navigator.vibrate) navigator.vibrate(200);
+      stopScan();
+      onBarcodeDetected(code);
+    }
+  });
+}
+
+function stopScan() {
+  scanActive = false;
+  Quagga.stop();
+  document.getElementById('btn-scan-start').style.display = 'flex';
+  document.getElementById('btn-scan-stop').style.display = 'none';
+  document.getElementById('scan-status').textContent = '스캔 대기 중...';
+}
+
+function onBarcodeDetected(code) {
+  document.getElementById('scan-status').textContent = '인식됨: ' + code;
+  document.getElementById('scan-status').className = 'scan-status detected';
+  document.getElementById('scan-barcode-num').textContent = '바코드: ' + code;
+  document.getElementById('scan-result').className = 'result-show';
+
+  // 네이버 쇼핑 검색 (CORS 우회 불가 → 바로 링크 제공)
+  document.getElementById('scan-product-name').textContent = code;
+  document.getElementById('scan-naver-price').innerHTML =
+    `<a href="https://search.shopping.naver.com/search/all?query=${code}" target="_blank" style="color:var(--yellow);font-size:13px">네이버에서 확인 →</a>`;
+
+  currentProduct = { barcode: code, name: code, source: 'scan' };
+}
+
+function manualLookup() {
+  const code = document.getElementById('manual-barcode').value.trim();
+  if (!code) { showToast('바코드를 입력해주세요'); return; }
+  onBarcodeDetected(code);
+}
+
+function resetScan() {
+  document.getElementById('scan-result').className = 'result-hidden';
+  document.getElementById('scan-status').textContent = '스캔 대기 중...';
+  document.getElementById('scan-status').className = 'scan-status';
+  currentProduct = null;
+}
+
+// ===== 마진 계산 =====
+function calcMargin(src) {
+  const buy = parseFloat(document.getElementById(src + '-buy-price').value) || 0;
+  const margin = parseFloat(document.getElementById(src + '-margin').value) || 30;
+  const sell = Math.round(buy * (1 + margin / 100));
+  const profit = sell - buy;
+
+  if (src === 'scan') {
+    document.getElementById('scan-sell-price').textContent = sell > 0 ? sell.toLocaleString() + '원' : '매입가를 입력하세요';
+    document.getElementById('scan-margin-badge').textContent = '수익 ' + (profit > 0 ? profit.toLocaleString() + '원' : '-');
+  } else {
+    document.getElementById('ai-sell-price').textContent = sell > 0 ? sell.toLocaleString() + '원' : '매입가를 입력하세요';
+  }
+
+  if (currentProduct) {
+    currentProduct.buyPrice = buy;
+    currentProduct.margin = margin;
+    currentProduct.sellPrice = sell;
+  }
+}
+
+// ===== 사진 촬영 / AI 인식 =====
+function handlePhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = document.getElementById('preview-img');
+    img.src = ev.target.result;
+    document.getElementById('photo-preview').style.display = 'block';
+    document.getElementById('photo-zone').style.display = 'none';
+    document.getElementById('ai-result').className = 'result-hidden';
+
+    analyzeWithGemini(ev.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+function retakePhoto() {
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('photo-zone').style.display = 'block';
+  document.getElementById('ai-result').className = 'result-hidden';
+  document.getElementById('photo-input').value = '';
+  currentProduct = null;
+}
+
+async function analyzeWithGemini(dataUrl) {
+  const key = localStorage.getItem('bn_gemini_key') || '';
+  if (!key) {
+    showToast('설정에서 Gemini API 키를 입력해주세요');
+    return;
+  }
+
+  document.getElementById('ai-loading').className = 'loading show';
+
+  const base64 = dataUrl.split(',')[1];
+  const mimeType = dataUrl.split(';')[0].split(':')[1];
+
+  const prompt = `이 상품 사진을 분석해서 아래 JSON만 반환해줘. 다른 텍스트는 절대 포함하지 마.
+{
+  "product_name": "상품명",
+  "brand": "브랜드명 (모르면 unknown)",
+  "category": "카테고리",
+  "spec": "규격 또는 모델명 (모르면 없음)",
+  "search_keyword": "네이버 쇼핑 검색용 핵심 키워드 (3단어 이내)"
+}`;
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: mimeType, data: base64 } },
+              { text: prompt }
+            ]
+          }]
+        })
+      }
+    );
+
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    document.getElementById('ai-loading').className = 'loading';
+    document.getElementById('ai-name').textContent = parsed.product_name || '-';
+    document.getElementById('ai-brand').textContent = parsed.brand || '-';
+    document.getElementById('ai-category').textContent = parsed.category || '-';
+    document.getElementById('ai-spec').textContent = parsed.spec || '-';
+    document.getElementById('ai-naver-price').innerHTML =
+      `<a href="https://search.shopping.naver.com/search/all?query=${encodeURIComponent(parsed.search_keyword || parsed.product_name)}" target="_blank" style="color:var(--yellow);font-size:13px">네이버에서 확인 →</a>`;
+    document.getElementById('ai-result').className = 'result-show';
+
+    currentProduct = {
+      name: parsed.product_name,
+      brand: parsed.brand,
+      category: parsed.category,
+      spec: parsed.spec,
+      source: 'photo'
+    };
+
+  } catch (err) {
+    document.getElementById('ai-loading').className = 'loading';
+    showToast('AI 분석 실패: API 키를 확인해주세요');
+    console.error(err);
+  }
+}
+
+// ===== 바코드 생성 =====
+function generateBarcode() {
+  if (!currentProduct) { showToast('먼저 상품을 인식해주세요'); return; }
+
+  const buy = parseFloat(document.getElementById('ai-buy-price').value) || 0;
+  const margin = parseFloat(document.getElementById('ai-margin').value) || 30;
+  const sell = Math.round(buy * (1 + margin / 100));
+  currentProduct.buyPrice = buy;
+  currentProduct.margin = margin;
+  currentProduct.sellPrice = sell;
+
+  const bnCode = 'BN' + String(Math.floor(Math.random() * 900000) + 100000);
+  currentProduct.bnCode = bnCode;
+
+  switchTab('barcode');
+  renderBarcodeScreen();
+}
+
+function registerFromScan() {
+  if (!currentProduct) { showToast('먼저 스캔해주세요'); return; }
+
+  const buy = parseFloat(document.getElementById('scan-buy-price').value) || 0;
+  const margin = parseFloat(document.getElementById('scan-margin').value) || 30;
+  const sell = Math.round(buy * (1 + margin / 100));
+  currentProduct.buyPrice = buy;
+  currentProduct.margin = margin;
+  currentProduct.sellPrice = sell;
+
+  const bnCode = currentProduct.barcode || ('BN' + String(Math.floor(Math.random() * 900000) + 100000));
+  currentProduct.bnCode = bnCode;
+
+  switchTab('barcode');
+  renderBarcodeScreen();
+}
+
+function renderBarcodeScreen() {
+  if (!currentProduct) return;
+  const p = currentProduct;
+  const code = p.bnCode || p.barcode || 'BN000000';
+
+  document.getElementById('barcode-empty').style.display = 'none';
+  document.getElementById('barcode-content').className = 'result-show';
+
+  // 바코드
+  try {
+    JsBarcode('#barcode-svg', code, {
+      format: 'CODE128',
+      width: 2,
+      height: 60,
+      displayValue: false,
+      margin: 10,
+      background: '#ffffff',
+      lineColor: '#000000'
+    });
+  } catch(e) { console.error(e); }
+
+  document.getElementById('barcode-display-num').textContent = code;
+  document.getElementById('barcode-display-name').textContent = p.name || '';
+
+  // QR
+  const qrData = JSON.stringify({ bn: code, name: p.name, price: p.sellPrice || 0 });
+  QRCode.toCanvas(document.getElementById('qr-canvas'), qrData, { width: 160, margin: 2 }, err => {
+    if (err) console.error(err);
+  });
+
+  document.getElementById('bc-name').textContent = p.name || '-';
+  document.getElementById('bc-code').textContent = code;
+  document.getElementById('bc-price').textContent = p.sellPrice ? p.sellPrice.toLocaleString() + '원' : '-';
+}
+
+// ===== 인쇄 =====
+function printBarcode() {
+  const svg = document.getElementById('barcode-svg').outerHTML;
+  const name = currentProduct?.name || '';
+  const code = currentProduct?.bnCode || '';
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><title>바코드 인쇄</title>
+    <style>
+      body { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; padding: 10mm; }
+      .label { text-align: center; border: 1px solid #eee; padding: 5mm; break-inside: avoid; }
+      .label svg { max-width: 100%; }
+      .label p { font-size: 10px; margin-top: 3px; font-family: monospace; }
+      .label .nm { font-size: 9px; color: #666; }
+      @media print { body { margin: 0; } }
+    </style></head><body>
+    ${[1,2,3,4].map(() => `
+      <div class="label">
+        ${svg}
+        <p>${code}</p>
+        <p class="nm">${name}</p>
+      </div>
+    `).join('')}
+    <script>window.onload=()=>{window.print();window.close();}<\/script>
+    </body></html>
+  `);
+  win.document.close();
+}
+
+// ===== 재고 저장 =====
+function saveToInventory() {
+  if (!currentProduct) { showToast('상품 정보가 없어요'); return; }
+
+  const item = {
+    id: Date.now(),
+    bnCode: currentProduct.bnCode,
+    barcode: currentProduct.barcode,
+    name: currentProduct.name || '이름 없음',
+    brand: currentProduct.brand || '',
+    category: currentProduct.category || '',
+    buyPrice: currentProduct.buyPrice || 0,
+    sellPrice: currentProduct.sellPrice || 0,
+    margin: currentProduct.margin || 30,
+    stock: 1,
+    createdAt: new Date().toLocaleDateString('ko-KR')
+  };
+
+  inventory.unshift(item);
+  localStorage.setItem('bn_inventory', JSON.stringify(inventory));
+  showToast('재고에 저장했어요 🍌');
+  setTimeout(() => switchTab('inventory'), 800);
+}
+
+// ===== 재고 렌더링 =====
+function renderInventory() {
+  const list = document.getElementById('inv-list');
+  const empty = document.getElementById('inv-empty');
+  const count = document.getElementById('inv-count');
+
+  count.textContent = `등록된 상품 ${inventory.length}개`;
+
+  if (inventory.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.innerHTML = inventory.map(item => `
+    <div class="inv-item">
+      <div class="inv-left">
+        <div class="inv-name">${item.name}</div>
+        <div class="inv-code">${item.bnCode || item.barcode || '-'} · ${item.category || '미분류'}</div>
+      </div>
+      <div class="inv-right">
+        <div class="inv-price">${item.sellPrice ? item.sellPrice.toLocaleString() + '원' : '-'}</div>
+        <div class="inv-stock ${item.stock < 3 ? 'low' : ''}">재고 ${item.stock}개</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===== 설정 =====
+function saveApiKey() {
+  const key = document.getElementById('gemini-key-input').value.trim();
+  localStorage.setItem('bn_gemini_key', key);
+  geminiKey = key;
+  showToast('API 키 저장됨');
+}
+
+function clearInventory() {
+  if (confirm('재고를 모두 삭제할까요?')) {
+    inventory = [];
+    localStorage.setItem('bn_inventory', '[]');
+    renderInventory();
+    showToast('삭제됐어요');
+  }
+}
+
+// ===== 토스트 =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
