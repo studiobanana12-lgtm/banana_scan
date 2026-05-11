@@ -49,7 +49,8 @@ try {
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body {
   height: 100%;
-  background: var(--bg);
+  /* 앱 컬럼(--bg2)과 동일 — 좌우에 더 어두운 띠(박스 음영)가 보이지 않게 */
+  background: var(--bg2);
   color: var(--text);
   font-family: -apple-system, 'Noto Sans KR', sans-serif;
   overflow: hidden;
@@ -60,9 +61,12 @@ html, body {
   height: 100vh;
   height: 100dvh;
   max-width: 480px;
+  width: 100%;
   margin: 0 auto;
   background: var(--bg2);
   position: relative;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* 헤더 */
@@ -74,6 +78,7 @@ html, body {
   background: var(--bg2);
   border-bottom: 0.5px solid var(--border);
   flex-shrink: 0;
+  min-width: 0;
 }
 .header-logo {
   font-size: 18px;
@@ -94,9 +99,11 @@ html, body {
 }
 .theme-btn:active { transform: scale(0.96); }
 
-/* 탭 컨텐츠 */
+/* 탭 컨텐츠 — flex 자식 min-width:auto 가로 넘침 방지 */
 .content {
   flex: 1;
+  min-width: 0;
+  width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -105,32 +112,57 @@ html, body {
   display: none;
   padding: 16px;
   max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
 }
 .screen.active { display: block; }
 
-/* 탭바 */
+/* 탭바 — 터치 타깃·가독성 (~1.5배) */
 .tabbar {
   display: flex;
   background: var(--bg2);
   border-top: 0.5px solid var(--border);
   flex-shrink: 0;
   padding-bottom: env(safe-area-inset-bottom);
+  overflow: hidden;
 }
 .tab {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 0 8px;
+  justify-content: center;
+  padding: 14px 2px 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.2s, stroke 0.2s;
+  background: transparent;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.tab svg { width: 22px; height: 22px; stroke: var(--text3); transition: stroke 0.2s; }
-.tab span { font-size: 10px; color: var(--text3); margin-top: 3px; transition: color 0.2s; }
+.tab svg {
+  width: 33px;
+  height: 33px;
+  stroke: var(--text3);
+  transition: stroke 0.2s;
+  flex-shrink: 0;
+}
+.tab span {
+  font-size: 15px;
+  color: var(--text3);
+  margin-top: 5px;
+  transition: color 0.2s;
+  line-height: 1.15;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
+}
 .tab.active svg { stroke: var(--yellow); }
-.tab.active span { color: var(--yellow); }
-.tab:active { opacity: 0.7; }
+.tab.active span { color: var(--yellow); font-weight: 600; }
+.tab:active { opacity: 0.82; }
 
 /* 카드 */
 .card {
@@ -449,11 +481,12 @@ input:focus { border-color: var(--yellow); }
 }
 .inv-item-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) max-content;
   align-items: stretch;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 8px;
   max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
 }
 .inv-item-main {
@@ -480,10 +513,12 @@ input:focus { border-color: var(--yellow); }
   flex-shrink: 0;
 }
 .inv-item-actions .btn {
-  padding: 8px 8px;
+  padding: 8px 10px;
   font-size: 11px;
   margin: 0;
   white-space: nowrap;
+  width: auto;
+  min-width: 0;
 }
 .inv-toolbar {
   margin-bottom: 10px;
@@ -1708,9 +1743,15 @@ function toggleTheme() {
   localStorage.setItem('bn_theme', isDark ? 'dark' : 'light');
 }
 function applyTheme() {
-  document.getElementById('app').className = isDark ? 'app' : 'app light';
+  const app = document.getElementById('app');
+  app.className = isDark ? 'app' : 'app light';
   document.getElementById('theme-btn').textContent = isDark ? '☀️ 라이트' : '🌙 다크';
   document.getElementById('theme-status').textContent = isDark ? '다크 모드' : '라이트 모드';
+  try {
+    const shellBg = getComputedStyle(app).backgroundColor;
+    document.documentElement.style.backgroundColor = shellBg;
+    document.body.style.backgroundColor = shellBg;
+  } catch (_) {}
 }
 
 // ===== 탭 전환 =====
