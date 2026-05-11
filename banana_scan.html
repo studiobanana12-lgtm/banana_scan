@@ -10,6 +10,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+try {
+  if (typeof QRCode !== 'undefined') window.__BN_QRCODE = QRCode;
+} catch (e) {}
+</script>
 <style>
 :root {
   --bg: #0d0d1a;
@@ -96,7 +101,12 @@ html, body {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
-.screen { display: none; padding: 16px; }
+.screen {
+  display: none;
+  padding: 16px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 .screen.active { display: block; }
 
 /* 탭바 */
@@ -129,6 +139,9 @@ html, body {
   border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 .card-title {
   font-size: 11px;
@@ -233,7 +246,7 @@ html, body {
 .btn-row .btn { flex: 1; padding: 12px; font-size: 14px; }
 
 /* 결과 카드 */
-.result-hidden { display: none; }
+.result-hidden { display: none !important; }
 .result-show { display: block; }
 .product-name {
   font-size: 17px;
@@ -248,9 +261,19 @@ html, body {
 }
 .price-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   margin-bottom: 14px;
+}
+.price-grid .input-group {
+  min-width: 0;
+}
+.price-grid input[type="number"],
+.price-grid input[type="text"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .price-box {
   background: var(--bg);
@@ -263,7 +286,14 @@ html, body {
 .price-value.green { color: var(--green); }
 
 /* 입력 */
-.input-group { margin-bottom: 12px; }
+.input-group { margin-bottom: 12px; min-width: 0; }
+.input-group input[type="number"],
+.input-group input[type="text"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 .input-label { font-size: 12px; color: var(--text3); margin-bottom: 6px; }
 .input-row { display: flex; gap: 8px; align-items: center; }
 input[type="number"], input[type="text"] {
@@ -370,11 +400,15 @@ input:focus { border-color: var(--yellow); }
   align-items: center;
   gap: 6px;
   margin-top: 2px;
+  min-width: 0;
+  max-width: 100%;
 }
 .won-field .won-input {
   flex: 1;
   min-width: 0;
   text-align: right;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .won-suffix {
   font-size: 13px;
@@ -408,21 +442,121 @@ input:focus { border-color: var(--yellow); }
   margin-bottom: 12px;
 }
 
-/* 재고 리스트 */
-.inv-item {
+/* 재고 리스트 — 그리드로 본문·버튼 열 분리(가로 잘림 방지) */
+#inv-list {
+  min-width: 0;
+  max-width: 100%;
+}
+.inv-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 8px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.inv-item-main {
+  min-width: 0;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 14px 12px;
   background: var(--bg3);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-sm);
-  margin-bottom: 8px;
   transition: all 0.2s;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.inv-item:active { opacity: 0.8; }
+.inv-item-main:active { opacity: 0.85; }
+.inv-item-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+}
+.inv-item-actions .btn {
+  padding: 8px 8px;
+  font-size: 11px;
+  margin: 0;
+  white-space: nowrap;
+}
+.inv-toolbar {
+  margin-bottom: 10px;
+}
+.inv-left {
+  min-width: 0;
+  flex: 1;
+}
+.inv-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.inv-code {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* 아코디언 */
+.accordion .accordion-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 0 10px;
+  margin: 0 0 2px;
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.accordion .accordion-head .accordion-title {
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.accordion .accordion-chevron {
+  font-size: 11px;
+  color: var(--text3);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.accordion:not(.is-open) .accordion-chevron {
+  transform: rotate(-90deg);
+}
+.accordion .accordion-body {
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.accordion.is-open .accordion-body {
+  max-height: 2400px;
+}
+.accordion:not(.is-open) .accordion-body {
+  max-height: 0;
+  margin: 0;
+  padding: 0;
+}
 .inv-detail-actions {
   display: flex;
   flex-direction: column;
@@ -430,10 +564,93 @@ input:focus { border-color: var(--yellow); }
   margin-top: 14px;
 }
 .inv-detail-actions .btn { margin-bottom: 0; }
-.inv-left {}
-.inv-name { font-size: 14px; font-weight: 600; color: var(--text); }
-.inv-code { font-size: 11px; color: var(--text3); margin-top: 2px; }
-.inv-right { text-align: right; }
+.inv-right { text-align: right; flex-shrink: 0; min-width: 0; }
+
+/* 재고 카테고리 선택 시트 */
+.inv-cat-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  background: rgba(0, 0, 0, 0.45);
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+.inv-cat-overlay.show {
+  display: flex;
+}
+.inv-cat-panel {
+  width: 100%;
+  max-width: 440px;
+  max-height: min(72vh, 520px);
+  background: var(--bg3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.25);
+}
+.inv-cat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 0.5px solid var(--border);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.inv-cat-close {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text2);
+  cursor: pointer;
+}
+.inv-cat-list {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 0 10px;
+}
+.inv-cat-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-bottom: 0.5px solid var(--border);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.inv-cat-item:last-child {
+  border-bottom: none;
+}
+.inv-cat-item:active {
+  background: var(--bg);
+}
+.inv-cat-item.is-active {
+  color: var(--yellow);
+  font-weight: 700;
+}
+.inv-cat-hint {
+  padding: 12px 16px 4px;
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.45;
+}
 .inv-price { font-size: 14px; font-weight: 700; color: var(--yellow); }
 .inv-stock { font-size: 11px; color: var(--green); margin-top: 2px; }
 .inv-stock.low { color: var(--red); }
@@ -614,7 +831,7 @@ input:focus { border-color: var(--yellow); }
   <div class="content">
 
     <!-- 스캔 탭 -->
-    <div class="screen active" id="screen-scan">
+    <div class="screen" id="screen-scan">
       <p class="section-sub" style="font-size:12px;color:var(--text3);margin:0 0 10px;line-height:1.45">
         인식 모드·카메라 장치·화질·손전등은 <strong>설정</strong> 탭의 「바코드·QR 스캔」에서 바꿀 수 있어요.
       </p>
@@ -710,8 +927,8 @@ input:focus { border-color: var(--yellow); }
       </div>
     </div>
 
-    <!-- 촬영 탭 -->
-    <div class="screen" id="screen-photo">
+    <!-- 촬영 탭 (제품추가) -->
+    <div class="screen active" id="screen-photo">
       <div class="section-title">AI 상품 인식</div>
       <div class="section-sub">사진을 찍으면 AI가 상품을 분석해요</div>
 
@@ -741,55 +958,65 @@ input:focus { border-color: var(--yellow); }
 
       <!-- AI 결과 -->
       <div id="ai-result" class="result-hidden">
-        <div class="card">
-          <div class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:14px;height:14px;stroke:currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            AI 분석 결과
-          </div>
-          <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px;line-height:1.45">아래 항목은 탭하여 <strong>직접 수정</strong>할 수 있어요.</p>
-          <div class="ai-rows">
-            <div class="ai-row ai-row-input">
-              <span class="ai-key">상품명</span>
-              <input type="text" class="ai-edit" id="ai-name" value="" autocomplete="off" placeholder="상품명" onblur="updateAiNaverShoppingLinkFromAiFields()">
-            </div>
-            <div class="ai-row ai-row-input">
-              <span class="ai-key">브랜드</span>
-              <input type="text" class="ai-edit" id="ai-brand" value="" autocomplete="off" placeholder="브랜드">
-            </div>
-            <div class="ai-row ai-row-input">
-              <span class="ai-key">카테고리</span>
-              <input type="text" class="ai-edit" id="ai-category" value="" autocomplete="off" placeholder="카테고리">
-            </div>
-            <div class="ai-row ai-row-input">
-              <span class="ai-key">규격/모델</span>
-              <input type="text" class="ai-edit" id="ai-spec" value="" autocomplete="off" placeholder="규격·모델" onblur="updateAiNaverShoppingLinkFromAiFields()">
-            </div>
-            <div class="ai-row">
-              <span class="ai-key">네이버 쇼핑</span>
-              <span class="ai-val" id="ai-naver-price" style="color:var(--yellow)">조회 중...</span>
+        <div class="card accordion is-open" id="acc-ai-analyze">
+          <button type="button" class="accordion-head" onclick="toggleAccordion('acc-ai-analyze')" aria-expanded="true" aria-controls="acc-ai-analyze-body">
+            <span class="accordion-title" style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;color:var(--text)">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:14px;height:14px;stroke:var(--yellow);flex-shrink:0"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              AI 분석 결과
+            </span>
+            <span class="accordion-chevron" aria-hidden="true">▼</span>
+          </button>
+          <div class="accordion-body" id="acc-ai-analyze-body">
+            <p style="font-size:11px;color:var(--text3);margin:0 0 8px;line-height:1.45">아래 항목은 탭하여 <strong>직접 수정</strong>할 수 있어요.</p>
+            <div class="ai-rows">
+              <div class="ai-row ai-row-input">
+                <span class="ai-key">상품명</span>
+                <input type="text" class="ai-edit" id="ai-name" value="" autocomplete="off" placeholder="상품명" onblur="updateAiNaverShoppingLinkFromAiFields()">
+              </div>
+              <div class="ai-row ai-row-input">
+                <span class="ai-key">브랜드</span>
+                <input type="text" class="ai-edit" id="ai-brand" value="" autocomplete="off" placeholder="브랜드">
+              </div>
+              <div class="ai-row ai-row-input">
+                <span class="ai-key">카테고리</span>
+                <input type="text" class="ai-edit" id="ai-category" value="" autocomplete="off" placeholder="카테고리">
+              </div>
+              <div class="ai-row ai-row-input">
+                <span class="ai-key">규격/모델</span>
+                <input type="text" class="ai-edit" id="ai-spec" value="" autocomplete="off" placeholder="규격·모델" onblur="updateAiNaverShoppingLinkFromAiFields()">
+              </div>
+              <div class="ai-row">
+                <span class="ai-key">네이버 쇼핑</span>
+                <span class="ai-val" id="ai-naver-price" style="color:var(--yellow)">조회 중...</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">가격 설정</div>
-          <div class="price-grid">
-            <div class="input-group" style="margin:0">
-              <div class="input-label">매입가</div>
-              <div class="won-field">
-                <input type="text" class="won-input" inputmode="numeric" id="ai-buy-price" placeholder="0" autocomplete="off" aria-label="매입가"
-                  oninput="onBuyPriceInput(event,'ai')" onchange="calcMargin('ai')">
-                <span class="won-suffix">원</span>
+        <div class="card accordion is-open" id="acc-ai-price">
+          <button type="button" class="accordion-head" onclick="toggleAccordion('acc-ai-price')" aria-expanded="true" aria-controls="acc-ai-price-body">
+            <span class="accordion-title" style="text-transform:none;letter-spacing:0;color:var(--text)">가격 설정</span>
+            <span class="accordion-chevron" aria-hidden="true">▼</span>
+          </button>
+          <div class="accordion-body" id="acc-ai-price-body">
+            <div class="price-grid">
+              <div class="input-group" style="margin:0">
+                <div class="input-label">매입가</div>
+                <div class="won-field">
+                  <input type="text" class="won-input" inputmode="numeric" id="ai-buy-price" placeholder="0" autocomplete="off" aria-label="매입가"
+                    oninput="onBuyPriceInput(event,'ai')" onchange="calcMargin('ai')">
+                  <span class="won-suffix">원</span>
+                </div>
+              </div>
+              <div class="input-group" style="margin:0">
+                <div class="input-label">마진율 %</div>
+                <input type="number" id="ai-margin" value="30" onchange="calcMargin('ai')">
               </div>
             </div>
-            <div class="input-group" style="margin:0">
-              <div class="input-label">마진율 %</div>
-              <input type="number" id="ai-margin" value="30" onchange="calcMargin('ai')">
+            <div class="price-box" style="margin-top:10px">
+              <div class="price-label">판매가 (자동계산)</div>
+              <div class="price-value green" id="ai-sell-price">매입가를 입력하세요</div>
             </div>
-          </div>
-          <div class="price-box" style="margin-top:10px">
-            <div class="price-label">판매가 (자동계산)</div>
-            <div class="price-value green" id="ai-sell-price">매입가를 입력하세요</div>
           </div>
         </div>
 
@@ -870,6 +1097,29 @@ input:focus { border-color: var(--yellow); }
       <div class="section-title">재고 현황</div>
       <div class="section-sub" id="inv-count">등록된 상품 0개</div>
 
+      <div class="card inv-toolbar accordion is-open" id="acc-inv-filter" style="padding:12px 14px;margin-bottom:10px">
+        <button type="button" class="accordion-head" onclick="toggleAccordion('acc-inv-filter')" aria-expanded="true" aria-controls="acc-inv-filter-body">
+          <span class="accordion-title" style="text-transform:none;letter-spacing:0;color:var(--text)">검색 · 정렬</span>
+          <span class="accordion-chevron" aria-hidden="true">▼</span>
+        </button>
+        <div class="accordion-body" id="acc-inv-filter-body">
+          <div class="input-group" style="margin-bottom:10px">
+            <div class="input-label">검색</div>
+            <input type="text" id="inv-search-q" placeholder="이름·모델·브랜드·바코드·BN…" autocomplete="off" oninput="renderInventory()">
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:stretch">
+            <button type="button" class="btn btn-secondary" id="inv-category-btn" onclick="openInvCategoryPicker()" style="flex:1;min-width:0;margin:0;padding:10px 12px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" aria-haspopup="dialog" aria-expanded="false" aria-controls="inv-category-dialog">카테고리</button>
+            <select id="inv-sort" onchange="renderInventory()" style="flex:1;min-width:0;max-width:100%;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);outline:none;-webkit-appearance:none;box-sizing:border-box" aria-label="정렬">
+              <option value="new">최신 등록순</option>
+              <option value="name-asc">이름 가나다 ↑</option>
+              <option value="name-desc">이름 가나다 ↓</option>
+              <option value="price-desc">판매가 높은순</option>
+              <option value="price-asc">판매가 낮은순</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div id="inv-list"></div>
 
       <div id="inv-detail" class="card result-hidden" style="margin-top:4px">
@@ -886,6 +1136,10 @@ input:focus { border-color: var(--yellow); }
         <div class="input-group" style="margin-bottom:10px">
           <div class="input-label">분류</div>
           <input type="text" id="inv-edit-category" autocomplete="off" placeholder="카테고리">
+        </div>
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-label">모델·규격</div>
+          <input type="text" id="inv-edit-spec" autocomplete="off" placeholder="모델명·규격">
         </div>
         <div class="input-group" style="margin-bottom:10px">
           <div class="input-label">BN 코드</div>
@@ -926,6 +1180,7 @@ input:focus { border-color: var(--yellow); }
         <div class="inv-detail-actions">
           <button type="button" class="btn btn-primary" onclick="saveInventoryEdit()">변경 저장</button>
           <button type="button" class="btn btn-secondary" onclick="loadInventoryItemToCreate()">이 상품으로 라벨 / QR</button>
+          <button type="button" class="btn btn-secondary" onclick="deleteSelectedInventoryItem()">이 항목 삭제</button>
           <button type="button" class="btn btn-secondary" onclick="closeInventoryDetail()">닫기</button>
         </div>
       </div>
@@ -933,6 +1188,17 @@ input:focus { border-color: var(--yellow); }
       <div id="inv-empty" class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
         <p>등록된 재고가 없어요<br>스캔 또는 촬영으로 추가하세요</p>
+      </div>
+
+      <div id="inv-category-overlay" class="inv-cat-overlay" aria-hidden="true" onclick="if(event.target===this)closeInvCategoryPicker()">
+        <div id="inv-category-dialog" class="inv-cat-panel" role="dialog" aria-modal="true" aria-labelledby="inv-cat-title" onclick="event.stopPropagation()">
+          <div class="inv-cat-head">
+            <span id="inv-cat-title">카테고리 선택</span>
+            <button type="button" class="inv-cat-close" onclick="closeInvCategoryPicker()">닫기</button>
+          </div>
+          <p class="inv-cat-hint">항목을 고르면 해당 분류만 보여요. 검색어와 함께 쓸 수 있어요.</p>
+          <div id="inv-category-list" class="inv-cat-list"></div>
+        </div>
       </div>
     </div>
 
@@ -1084,13 +1350,13 @@ input:focus { border-color: var(--yellow); }
 
   <!-- 탭바 -->
   <div class="tabbar">
-    <div class="tab active" onclick="switchTab('scan')" id="tab-scan">
+    <div class="tab active" onclick="switchTab('photo')" id="tab-photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>제품추가</span>
+    </div>
+    <div class="tab" onclick="switchTab('scan')" id="tab-scan">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="12"/></svg>
       <span>스캔</span>
-    </div>
-    <div class="tab" onclick="switchTab('photo')" id="tab-photo">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      <span>촬영</span>
     </div>
     <div class="tab" onclick="switchTab('barcode')" id="tab-barcode">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3z"/><path d="M17 17h4"/><path d="M17 21v-4"/><path d="M21 14v3"/></svg>
@@ -1120,6 +1386,8 @@ let scanActive = false;
 let scanMode = 'both'; // barcode | qr | both
 let createOutputMode = 'barcode'; // barcode | qr — 라벨 생성 탭
 let selectedInventoryId = null;
+/** 재고 카테고리 필터: '' = 전체, '__uncat__' = 분류 없음, 그 외 = category 문자열 그대로 */
+let invCategoryFilter = '';
 let scanPreviewStream = null;
 let scanStarting = false;
 let scanMediaAbort = null;
@@ -1143,6 +1411,14 @@ function escapeHtml(s) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function toggleAccordion(rootId) {
+  const el = document.getElementById(rootId);
+  if (!el) return;
+  el.classList.toggle('is-open');
+  const head = el.querySelector('.accordion-head');
+  if (head) head.setAttribute('aria-expanded', el.classList.contains('is-open') ? 'true' : 'false');
 }
 
 function digitsOnlyPrice(s) {
@@ -1419,7 +1695,10 @@ window.addEventListener('load', () => {
   renderInventory();
   const saved = localStorage.getItem('bn_theme');
   if (saved === 'light') { isDark = false; applyTheme(); }
-  setTimeout(() => { void startScan(); }, 200);
+  setTimeout(() => {
+    const scanScreen = document.getElementById('screen-scan');
+    if (scanScreen && scanScreen.classList.contains('active')) void startScan();
+  }, 200);
 });
 
 // ===== 테마 =====
@@ -2158,6 +2437,14 @@ function tryParseQrJson(s) {
         price: Number(o.price) || 0
       };
     }
+    if ('b' in o && ('n' in o || 'p' in o)) {
+      return {
+        kind: 'banana',
+        bn: String(o.b != null ? o.b : ''),
+        name: String(o.n != null ? o.n : (o.name != null ? o.name : '')),
+        price: Number(o.p != null ? o.p : o.price) || 0
+      };
+    }
     return { kind: 'generic', obj: o };
   } catch (_) {
     return null;
@@ -2630,6 +2917,32 @@ function setCreateOutputMode(mode) {
   updateCreatePrintButtonText();
 }
 
+function truncateUtf8Bytes(str, maxBytes) {
+  const s = String(str || '');
+  if (!maxBytes || maxBytes < 1) return '';
+  try {
+    const enc = new TextEncoder();
+    let out = '';
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      const next = out + ch;
+      if (enc.encode(next).length > maxBytes) break;
+      out = next;
+    }
+    return out;
+  } catch (_) {
+    return s.slice(0, Math.min(s.length, Math.floor(maxBytes / 3)));
+  }
+}
+
+function buildQrLabelPayload(code, name, price, nameMaxBytes) {
+  const cap = nameMaxBytes == null ? 18 : nameMaxBytes;
+  const b = String(code || '').replace(/\s/g, '').slice(0, 16);
+  const n = truncateUtf8Bytes(String(name || '').replace(/\s+/g, ' ').trim(), cap);
+  const p = Math.round(Number(price)) || 0;
+  return JSON.stringify({ b, n, p });
+}
+
 function openInventoryDetail(id) {
   const item = inventory.find(x => x.id === id);
   if (!item) return;
@@ -2639,6 +2952,8 @@ function openInventoryDetail(id) {
   document.getElementById('inv-edit-name').value = item.name || '';
   document.getElementById('inv-edit-brand').value = item.brand || '';
   document.getElementById('inv-edit-category').value = item.category || '';
+  const specEl = document.getElementById('inv-edit-spec');
+  if (specEl) specEl.value = item.spec || '';
   document.getElementById('inv-edit-bncode').value = item.bnCode || '';
   document.getElementById('inv-edit-barcode').value = item.barcode || '';
   hydrateBuyPriceField('inv-edit-buy', item.buyPrice || 0);
@@ -2703,11 +3018,13 @@ function saveInventoryEdit() {
   }
   const stock = Math.max(0, parseInt(String(document.getElementById('inv-edit-stock').value).replace(/\D/g, ''), 10) || 0);
   const prev = inventory[idx];
+  const specEl = document.getElementById('inv-edit-spec');
   inventory[idx] = {
     ...prev,
     name,
     brand: (document.getElementById('inv-edit-brand').value || '').trim(),
     category: (document.getElementById('inv-edit-category').value || '').trim(),
+    spec: specEl ? (specEl.value || '').trim() : (prev.spec || ''),
     bnCode: (document.getElementById('inv-edit-bncode').value || '').trim() || prev.bnCode,
     barcode: (document.getElementById('inv-edit-barcode').value || '').trim() || prev.barcode,
     buyPrice: buy,
@@ -2727,6 +3044,22 @@ function closeInventoryDetail() {
   if (panel) panel.className = 'card result-hidden';
 }
 
+function applyInventoryItemToCurrentProduct(item) {
+  if (!item) return;
+  currentProduct = {
+    bnCode: item.bnCode,
+    barcode: item.barcode,
+    name: item.name,
+    brand: item.brand || '',
+    category: item.category || '',
+    spec: item.spec || '',
+    buyPrice: item.buyPrice || 0,
+    sellPrice: item.sellPrice || 0,
+    margin: item.margin != null ? item.margin : 30,
+    source: 'inventory'
+  };
+}
+
 function loadInventoryItemToCreate() {
   if (selectedInventoryId == null) return;
   const item = inventory.find(x => x.id === selectedInventoryId);
@@ -2734,21 +3067,155 @@ function loadInventoryItemToCreate() {
     showToast('항목을 찾을 수 없어요');
     return;
   }
-  currentProduct = {
-    bnCode: item.bnCode,
-    barcode: item.barcode,
-    name: item.name,
-    brand: item.brand || '',
-    category: item.category || '',
-    buyPrice: item.buyPrice || 0,
-    sellPrice: item.sellPrice || 0,
-    margin: item.margin != null ? item.margin : 30,
-    source: 'inventory'
-  };
+  applyInventoryItemToCurrentProduct(item);
   closeInventoryDetail();
   switchTab('barcode');
   renderBarcodeScreen();
   showToast('생성 탭에서 라벨을 확인하세요');
+}
+
+function openLabelFromInventoryId(id) {
+  const item = inventory.find(x => x.id === id);
+  if (!item) {
+    showToast('항목을 찾을 수 없어요');
+    return;
+  }
+  applyInventoryItemToCurrentProduct(item);
+  closeInventoryDetail();
+  switchTab('barcode');
+  renderBarcodeScreen();
+  showToast('생성 탭에서 라벨을 확인하세요');
+}
+
+function deleteSelectedInventoryItem() {
+  if (selectedInventoryId == null) return;
+  deleteInventoryItem(selectedInventoryId);
+}
+
+function deleteInventoryItem(id) {
+  if (id == null) return;
+  if (!confirm('이 재고 항목을 삭제할까요?')) return;
+  inventory = inventory.filter(x => x.id !== id);
+  localStorage.setItem('bn_inventory', JSON.stringify(inventory));
+  if (selectedInventoryId === id) closeInventoryDetail();
+  showToast('삭제했어요');
+  renderInventory();
+}
+
+function invHaystackForSearch(item, field) {
+  const f = v => String(v == null ? '' : v).toLowerCase();
+  switch (field) {
+    case 'name':
+      return f(item.name);
+    case 'category':
+      return f(item.category);
+    case 'spec':
+      return f(item.spec);
+    case 'brand':
+      return f(item.brand);
+    case 'barcode':
+      return f(item.barcode);
+    case 'bn':
+      return f(item.bnCode);
+    default:
+      return [item.name, item.category, item.spec, item.brand, item.barcode, item.bnCode].map(f).join('\u0001');
+  }
+}
+
+function getInventoryCategoryValues() {
+  const set = new Set();
+  for (const it of inventory) {
+    const c = String(it.category || '').trim();
+    if (c) set.add(c);
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+}
+
+function updateInvCategoryButtonLabel() {
+  const btn = document.getElementById('inv-category-btn');
+  if (!btn) return;
+  let label = '카테고리';
+  if (invCategoryFilter === '__uncat__') label = '미분류';
+  else if (invCategoryFilter) {
+    label = invCategoryFilter.length > 10 ? invCategoryFilter.slice(0, 10) + '…' : invCategoryFilter;
+  }
+  btn.textContent = label;
+}
+
+function openInvCategoryPicker() {
+  const overlay = document.getElementById('inv-category-overlay');
+  const listEl = document.getElementById('inv-category-list');
+  const btn = document.getElementById('inv-category-btn');
+  if (!overlay || !listEl) return;
+  listEl.innerHTML = '';
+  const mk = (text, value, active) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'inv-cat-item' + (active ? ' is-active' : '');
+    b.textContent = text;
+    b.onclick = () => selectInvCategory(value);
+    listEl.appendChild(b);
+  };
+  mk('전체 보기', '__all__', !invCategoryFilter);
+  const hasUncat = inventory.some(it => !String(it.category || '').trim());
+  const cats = getInventoryCategoryValues();
+  if (hasUncat) mk('미분류 (분류 없음)', '__uncat__', invCategoryFilter === '__uncat__');
+  for (const c of cats) {
+    mk(c, c, invCategoryFilter === c);
+  }
+  if (!hasUncat && cats.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'inv-cat-hint';
+    p.style.paddingTop = '0';
+    p.textContent = '아직 저장된 분류가 없어요. 상품 상세에서 분류를 넣으면 여기에 나타나요.';
+    listEl.appendChild(p);
+  }
+  overlay.classList.add('show');
+  overlay.setAttribute('aria-hidden', 'false');
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+}
+
+function closeInvCategoryPicker() {
+  const overlay = document.getElementById('inv-category-overlay');
+  const btn = document.getElementById('inv-category-btn');
+  if (overlay) {
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function selectInvCategory(value) {
+  if (value === '__all__') invCategoryFilter = '';
+  else invCategoryFilter = value;
+  updateInvCategoryButtonLabel();
+  closeInvCategoryPicker();
+  renderInventory();
+}
+
+function getFilteredSortedInventoryRows() {
+  const qEl = document.getElementById('inv-search-q');
+  const sortEl = document.getElementById('inv-sort');
+  const q = (qEl && qEl.value ? qEl.value : '').trim().toLowerCase();
+  const sort = sortEl ? sortEl.value : 'new';
+
+  let rows = inventory.slice();
+  if (invCategoryFilter === '__uncat__') {
+    rows = rows.filter(it => !String(it.category || '').trim());
+  } else if (invCategoryFilter) {
+    rows = rows.filter(it => String(it.category || '').trim() === invCategoryFilter);
+  }
+  if (q) {
+    rows = rows.filter(it => invHaystackForSearch(it, 'all').indexOf(q) >= 0);
+  }
+  rows.sort((a, b) => {
+    if (sort === 'name-asc') return String(a.name || '').localeCompare(String(b.name || ''), 'ko');
+    if (sort === 'name-desc') return String(b.name || '').localeCompare(String(a.name || ''), 'ko');
+    if (sort === 'price-asc') return (Number(a.sellPrice) || 0) - (Number(b.sellPrice) || 0);
+    if (sort === 'price-desc') return (Number(b.sellPrice) || 0) - (Number(a.sellPrice) || 0);
+    return (Number(b.id) || 0) - (Number(a.id) || 0);
+  });
+  return rows;
 }
 
 // ===== 바코드 생성 =====
@@ -2775,10 +3242,15 @@ function getQrLabelDataUrlForPrint() {
   const host = document.getElementById('qr-host');
   if (!host) return '';
   const img = host.querySelector('img');
+  if (img && img.complete && img.naturalWidth > 0 && img.src) {
+    try {
+      if (img.src.indexOf('data:') === 0) return img.src;
+    } catch (_) {}
+  }
   if (img && img.src && img.src.indexOf('data:') === 0) return img.src;
-  if (img && img.src) return img.src;
+  if (img && img.src && /^https?:/i.test(img.src)) return img.src;
   const cv = host.querySelector('canvas');
-  if (cv && typeof cv.toDataURL === 'function') {
+  if (cv && cv.width > 0 && cv.height > 0 && typeof cv.toDataURL === 'function') {
     try {
       return cv.toDataURL('image/png');
     } catch (_) {}
@@ -2786,59 +3258,114 @@ function getQrLabelDataUrlForPrint() {
   return '';
 }
 
-function renderQrLabelWithLib(qrText) {
-  if (typeof QRCode === 'undefined') {
+/** 항상 paint 가능한 영역 (display:none 안에서 그리면 Safari 등에서 간헐 실패) */
+function getBnQrPaintSandbox() {
+  let el = document.getElementById('bn-qr-paint-sandbox');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'bn-qr-paint-sandbox';
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText =
+      'position:fixed;left:0;top:0;width:280px;height:280px;opacity:0.02;' +
+      'pointer-events:none;z-index:2147483646;overflow:hidden;' +
+      'contain:strict;background:#fff';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function renderQrLabelFromProduct(code, name, price) {
+  const QRLib = window.__BN_QRCODE || window.QRCode;
+  if (typeof QRLib === 'undefined') {
     console.error('QRCode 라이브러리 없음');
     showToast('QR 스크립트 로드 실패. 새로고침 후 다시 시도해 주세요.');
+    updateCreateOutputVisibility();
     return;
   }
   const wrap = document.querySelector('#create-qr-block .qr-wrap');
   if (!wrap) return;
 
-  const fresh = document.createElement('div');
-  fresh.id = 'qr-host';
-  fresh.style.cssText = 'display:inline-block;min-width:40px;min-height:40px';
-  const oldHost = document.getElementById('qr-host');
-  if (oldHost) wrap.replaceChild(fresh, oldHost);
-  else wrap.appendChild(fresh);
+  const sandbox = getBnQrPaintSandbox();
+  sandbox.innerHTML = '';
   qrLabelInstance = null;
 
-  const qrBlock = document.getElementById('create-qr-block');
-  let restore = null;
-  if (qrBlock) {
-    const hidden = window.getComputedStyle(qrBlock).display === 'none';
-    if (hidden) {
-      const prev = qrBlock.getAttribute('style') || '';
-      qrBlock.style.cssText =
-        'display:block!important;position:fixed;left:-9999px;top:0;visibility:hidden;width:280px;height:280px;';
-      restore = () => {
-        if (prev) qrBlock.setAttribute('style', prev);
-        else qrBlock.removeAttribute('style');
-        updateCreateOutputVisibility();
-      };
+  const baseOpts = {
+    width: 200,
+    height: 200,
+    colorDark: '#000000',
+    colorLight: '#ffffff'
+  };
+  if (QRLib.CorrectLevel) baseOpts.correctLevel = QRLib.CorrectLevel.L;
+
+  const nameByteCaps = [28, 22, 16, 12, 8, 6, 4, 2, 0];
+  let drew = false;
+  let lastErr = null;
+  for (let i = 0; i < nameByteCaps.length; i++) {
+    const qrText = buildQrLabelPayload(code, name, price, nameByteCaps[i]);
+    sandbox.innerHTML = '';
+    qrLabelInstance = null;
+    try {
+      qrLabelInstance = new QRLib(sandbox, Object.assign({ text: qrText }, baseOpts));
+      drew = true;
+      break;
+    } catch (e) {
+      lastErr = e;
+      if (e && String(e.message || e).indexOf('overflow') >= 0) continue;
+      console.error(e);
+      break;
     }
   }
-  try {
-    const level = QRCode.CorrectLevel ? QRCode.CorrectLevel.H : undefined;
-    const opts = {
-      text: String(qrText),
-      width: 200,
-      height: 200,
-      colorDark: '#000000',
-      colorLight: '#ffffff'
-    };
-    if (level != null) opts.correctLevel = level;
-    qrLabelInstance = new QRCode(fresh, opts);
-  } catch (e) {
-    console.error(e);
-    showToast('QR 그리기 실패: ' + (e && e.message ? e.message : String(e)));
-  } finally {
-    const finishLayout = () => {
-      if (typeof restore === 'function') restore();
-      else updateCreateOutputVisibility();
-    };
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(finishLayout);
-    else setTimeout(finishLayout, 0);
+  if (!drew) {
+    console.error(lastErr);
+    showToast(
+      lastErr && lastErr.message
+        ? 'QR 생성 실패: ' + lastErr.message
+        : 'QR 생성에 실패했어요. 상품명을 짧게 수정해 보세요.'
+    );
+    updateCreateOutputVisibility();
+    updateCreatePrintButtonText();
+    return;
+  }
+
+  const moveSandboxIntoWrap = () => {
+    if (!sandbox.firstChild) return false;
+    wrap.innerHTML = '';
+    const fresh = document.createElement('div');
+    fresh.id = 'qr-host';
+    fresh.style.cssText = 'display:inline-block;min-width:40px;min-height:40px';
+    try {
+      while (sandbox.firstChild) fresh.appendChild(sandbox.firstChild);
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+    wrap.appendChild(fresh);
+    return fresh.childNodes.length > 0;
+  };
+
+  let pollAttempts = 0;
+  const finishOrPoll = () => {
+    if (moveSandboxIntoWrap()) {
+      updateCreateOutputVisibility();
+      updateCreatePrintButtonText();
+      return;
+    }
+    pollAttempts++;
+    if (pollAttempts >= 12) {
+      console.warn('QR poll timeout');
+      updateCreateOutputVisibility();
+      updateCreatePrintButtonText();
+      showToast('QR이 잠시 안 보일 수 있어요. QR 라벨 탭을 한 번 더 눌러 주세요.');
+      return;
+    }
+    setTimeout(finishOrPoll, 35);
+  };
+
+  const kick = () => finishOrPoll();
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(kick, 10)));
+  } else {
+    setTimeout(kick, 30);
   }
 }
 
@@ -2893,8 +3420,7 @@ function renderBarcodeScreen() {
     bcPrice.textContent = Number.isFinite(sp) && sp > 0 ? sp.toLocaleString('ko-KR') + '원' : '-';
   }
 
-  const qrData = JSON.stringify({ bn: code, name: p.name || '', price: p.sellPrice || 0 });
-  renderQrLabelWithLib(qrData);
+  renderQrLabelFromProduct(code, p.name || '', p.sellPrice || 0);
 
   updateCreateOutputVisibility();
   updateCreatePrintButtonText();
@@ -2909,29 +3435,20 @@ function printBarcode() {
   const name = currentProduct.name || '';
   const code = currentProduct.bnCode || currentProduct.barcode || '';
 
-  const win = window.open('', '_blank');
-  if (!win) {
-    showToast('팝업이 막혀 있어요');
-    return;
-  }
-
   if (createOutputMode === 'qr') {
-    let dataUrl = getQrLabelDataUrlForPrint();
-    if (!dataUrl) {
-      renderQrLabelWithLib(JSON.stringify({
-        bn: code,
-        name: name,
-        price: currentProduct.sellPrice || 0
-      }));
-      dataUrl = getQrLabelDataUrlForPrint();
-    }
-    if (!dataUrl) {
-      showToast('QR 이미지가 없어요. 생성 탭에서 라벨을 다시 만들어 주세요.');
-      return;
-    }
-    const safeName = escapeHtml(name);
-    const safeCode = escapeHtml(code);
-    win.document.write(`
+    renderQrLabelFromProduct(code, name, currentProduct.sellPrice || 0);
+    let tries = 0;
+    const waitAndPrintQr = () => {
+      const dataUrl = getQrLabelDataUrlForPrint();
+      if (dataUrl) {
+        const win = window.open('', '_blank');
+        if (!win) {
+          showToast('팝업이 막혀 있어요');
+          return;
+        }
+        const safeName = escapeHtml(name);
+        const safeCode = escapeHtml(code);
+        win.document.write(`
     <html><head><title>QR 인쇄</title>
     <style>
       body { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; padding: 10mm; }
@@ -2951,7 +3468,23 @@ function printBarcode() {
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>
   `);
-    win.document.close();
+        win.document.close();
+        return;
+      }
+      tries++;
+      if (tries >= 30) {
+        showToast('QR 준비가 지연됐어요. 잠시 후 「인쇄」를 다시 눌러 주세요.');
+        return;
+      }
+      setTimeout(waitAndPrintQr, 45);
+    };
+    setTimeout(waitAndPrintQr, 80);
+    return;
+  }
+
+  const win = window.open('', '_blank');
+  if (!win) {
+    showToast('팝업이 막혀 있어요');
     return;
   }
 
@@ -2995,6 +3528,7 @@ function saveToInventory() {
     name: currentProduct.name || '이름 없음',
     brand: currentProduct.brand || '',
     category: currentProduct.category || '',
+    spec: currentProduct.spec || '',
     buyPrice: currentProduct.buyPrice || 0,
     sellPrice: currentProduct.sellPrice || 0,
     margin: currentProduct.margin || 30,
@@ -3015,7 +3549,16 @@ function renderInventory() {
   const empty = document.getElementById('inv-empty');
   const count = document.getElementById('inv-count');
 
-  count.textContent = `등록된 상품 ${inventory.length}개`;
+  const rows = getFilteredSortedInventoryRows();
+  const qEl = document.getElementById('inv-search-q');
+  const hasQ = !!(qEl && qEl.value && qEl.value.trim());
+  const hasCat = !!invCategoryFilter;
+  if (hasQ || hasCat) {
+    count.textContent = `등록 ${inventory.length}개 · 표시 ${rows.length}개`;
+  } else {
+    count.textContent = `등록된 상품 ${inventory.length}개`;
+  }
+  updateInvCategoryButtonLabel();
 
   if (inventory.length === 0) {
     list.innerHTML = '';
@@ -3029,21 +3572,34 @@ function renderInventory() {
   }
 
   empty.style.display = 'none';
-  list.innerHTML = inventory.map(item => {
+  if (rows.length === 0) {
+    list.innerHTML =
+      '<div class="empty-state" style="padding:28px 12px"><p style="font-size:14px;color:var(--text3)">검색 조건에 맞는 재고가 없어요</p></div>';
+    return;
+  }
+
+  list.innerHTML = rows.map(item => {
     const id = item.id;
     const nm = escapeHtml(item.name);
-    const codeLine = escapeHtml(`${item.bnCode || item.barcode || '-'} · ${item.category || '미분류'}`);
+    const sub = [item.spec, item.category].filter(Boolean).join(' · ') || '미분류';
+    const codeLine = escapeHtml(`${item.bnCode || item.barcode || '-'} · ${sub}`);
     const price = item.sellPrice ? item.sellPrice.toLocaleString() + '원' : '-';
     const low = item.stock < 3 ? ' low' : '';
     return `
-    <div class="inv-item" role="button" tabindex="0" onclick="openInventoryDetail(${id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openInventoryDetail(${id});}">
-      <div class="inv-left">
-        <div class="inv-name">${nm}</div>
-        <div class="inv-code">${codeLine}</div>
+    <div class="inv-item-row">
+      <div class="inv-item-main" role="button" tabindex="0" onclick="openInventoryDetail(${id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openInventoryDetail(${id});}">
+        <div class="inv-left">
+          <div class="inv-name">${nm}</div>
+          <div class="inv-code">${codeLine}</div>
+        </div>
+        <div class="inv-right">
+          <div class="inv-price">${price}</div>
+          <div class="inv-stock${low}">재고 ${item.stock}개</div>
+        </div>
       </div>
-      <div class="inv-right">
-        <div class="inv-price">${price}</div>
-        <div class="inv-stock${low}">재고 ${item.stock}개</div>
+      <div class="inv-item-actions">
+        <button type="button" class="btn btn-secondary" onclick="event.stopPropagation();openLabelFromInventoryId(${id})">라벨</button>
+        <button type="button" class="btn btn-secondary" onclick="event.stopPropagation();deleteInventoryItem(${id})">삭제</button>
       </div>
     </div>`;
   }).join('');
