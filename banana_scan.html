@@ -775,7 +775,7 @@ input:focus { border-color: var(--yellow); }
         <div class="card-title">Gemini API 키</div>
         <div class="input-group">
           <div class="input-label">AI 상품 인식에 필요해요</div>
-          <input type="text" id="gemini-key-input" placeholder="AIza..." style="font-size:13px">
+          <input type="password" id="gemini-key-input" placeholder="저장된 키가 있으면 자동 로드됩니다" style="font-size:13px">
         </div>
         <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
           <button class="btn btn-primary" id="api-key-btn" onclick="saveApiKey()" style="flex:1">저장 및 확인</button>
@@ -857,10 +857,12 @@ let zxingReader = null;
 
 // ===== 초기화 =====
 window.addEventListener('load', () => {
-  document.getElementById('gemini-key-input').value = geminiKey;
-  if (geminiKey) {
-    document.getElementById('api-key-status').textContent = '저장됨 (미확인)';
-    document.getElementById('api-key-status').style.color = 'var(--yellow)';
+  const savedKey = localStorage.getItem('bn_gemini_key') || '';
+  if (savedKey) {
+    document.getElementById('gemini-key-input').value = savedKey;
+    document.getElementById('api-key-status').textContent = '✅ 키 로드됨';
+    document.getElementById('api-key-status').style.color = 'var(--green)';
+    geminiKey = savedKey;
   }
   document.getElementById('gemini-model').value = geminiModel;
   renderInventory();
@@ -911,22 +913,32 @@ function startScan() {
   const container = document.getElementById('interactive');
   container.innerHTML = '<div id="qr-reader" style="width:100%;height:100%"></div>';
 
+  const allFormats = [
+    Html5QrcodeSupportedFormats.QR_CODE,
+    Html5QrcodeSupportedFormats.EAN_13,
+    Html5QrcodeSupportedFormats.EAN_8,
+    Html5QrcodeSupportedFormats.CODE_128,
+    Html5QrcodeSupportedFormats.CODE_39,
+    Html5QrcodeSupportedFormats.UPC_A,
+    Html5QrcodeSupportedFormats.UPC_E,
+    Html5QrcodeSupportedFormats.DATA_MATRIX,
+    Html5QrcodeSupportedFormats.ITF
+  ];
+  const qrOnly = [Html5QrcodeSupportedFormats.QR_CODE];
+  const barcodeOnly = [
+    Html5QrcodeSupportedFormats.EAN_13,
+    Html5QrcodeSupportedFormats.EAN_8,
+    Html5QrcodeSupportedFormats.CODE_128,
+    Html5QrcodeSupportedFormats.CODE_39,
+    Html5QrcodeSupportedFormats.UPC_A,
+    Html5QrcodeSupportedFormats.UPC_E
+  ];
   const config = {
-    fps: 15,
-    qrbox: { width: 250, height: 150 },
+    fps: 20,
+    qrbox: scanMode === 'qr' ? { width: 220, height: 220 } : { width: 280, height: 140 },
     aspectRatio: 1.0,
-    formatsToSupport: scanMode === 'qr'
-      ? [Html5QrcodeSupportedFormats.QR_CODE]
-      : scanMode === 'barcode'
-      ? [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E
-        ]
-      : undefined
+    formatsToSupport: scanMode === 'qr' ? qrOnly : scanMode === 'barcode' ? barcodeOnly : allFormats,
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
   };
 
   const scanner = new Html5Qrcode('qr-reader');
