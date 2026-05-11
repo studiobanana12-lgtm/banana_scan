@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>🍌 바나나 스캔</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
@@ -573,51 +574,9 @@ input:focus { border-color: var(--yellow); }
 
     <!-- 스캔 탭 -->
     <div class="screen active" id="screen-scan">
-      <div class="section-title">바코드·QR 스캔</div>
-      <div class="section-sub">카메라로 바코드 또는 QR코드를 비춰주세요</div>
-
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button class="btn btn-secondary" id="mode-barcode" onclick="setScanMode('barcode')" style="flex:1;padding:10px;font-size:13px;border-color:var(--yellow);color:var(--yellow)">바코드</button>
-        <button class="btn btn-secondary" id="mode-qr" onclick="setScanMode('qr')" style="flex:1;padding:10px;font-size:13px">QR코드</button>
-        <button class="btn btn-secondary" id="mode-both" onclick="setScanMode('both')" style="flex:1;padding:10px;font-size:13px">자동감지</button>
-      </div>
-
-      <div class="card" style="margin-bottom:12px;padding:14px 16px">
-        <div class="card-title" style="margin-bottom:10px">카메라 설정</div>
-        <div class="cam-settings-grid">
-          <div class="input-group" style="margin-bottom:0">
-            <div class="input-label">카메라 방향</div>
-            <select id="cam-facing" onchange="onCamSettingChange()" aria-label="카메라 앞뒤">
-              <option value="environment">후면 (바코드 권장)</option>
-              <option value="user">전면</option>
-            </select>
-          </div>
-          <div class="input-group" style="margin-bottom:0">
-            <div class="input-label">카메라 장치</div>
-            <select id="cam-device" onchange="onCamSettingChange()" aria-label="카메라 장치">
-              <option value="">시스템 기본 (위 방향 따름)</option>
-            </select>
-            <div class="cam-device-actions">
-              <button type="button" class="btn btn-secondary" onclick="refreshCameraDeviceList(true)">장치 목록 새로고침</button>
-            </div>
-            <p class="cam-settings-hint" id="cam-device-hint">권한 허용 후 목록에 모델명이 보일 수 있어요. 여러 렌즈가 있으면 여기서 바꿔 실험해 보세요.</p>
-          </div>
-          <div class="input-group" style="margin-bottom:0">
-            <div class="input-label">화질 (해상도 힌트)</div>
-            <select id="cam-quality" onchange="onCamSettingChange()" aria-label="카메라 해상도">
-              <option value="auto">자동</option>
-              <option value="hd">HD · 1280×720 전후</option>
-              <option value="fhd">FHD · 1920×1080 전후</option>
-            </select>
-          </div>
-          <div class="cam-settings-row">
-            <label id="cam-torch-wrap">
-              <input type="checkbox" id="cam-torch" onchange="onTorchToggle()">
-              손전등 (토치) — 어두울 때 후면 카메라만
-            </label>
-          </div>
-        </div>
-      </div>
+      <p class="section-sub" style="font-size:12px;color:var(--text3);margin:0 0 10px;line-height:1.45">
+        인식 모드·카메라 장치·화질·손전등은 <strong>설정</strong> 탭의 「바코드·QR 스캔」에서 바꿀 수 있어요.
+      </p>
 
       <div class="cam-wrap" id="cam-wrap">
         <div id="interactive"></div>
@@ -627,17 +586,24 @@ input:focus { border-color: var(--yellow); }
             <div class="scan-line"></div>
           </div>
         </div>
-        <div class="cam-hint" id="cam-hint">바코드를 프레임 안에 맞춰주세요</div>
+        <div class="cam-hint" id="cam-hint">맞춘 뒤 아래 「촬영하여 인식」을 눌러주세요</div>
       </div>
+
+      <div id="scan-file-reader" aria-hidden="true" style="position:absolute;width:1px;height:1px;left:-9999px;overflow:hidden;pointer-events:none"></div>
 
       <div class="scan-cam-error" id="scan-cam-error" role="alert"></div>
 
       <div class="scan-status" id="scan-status">스캔 대기 중...</div>
 
+      <button type="button" class="btn btn-primary" onclick="captureAndDecodeScan()" id="btn-scan-capture" style="display:none;margin-bottom:12px;width:100%">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:20px;height:20px;stroke:currentColor"><circle cx="12" cy="12" r="4"/><path d="M3 9h2l1-2h12l1 2h2v10H3z"/></svg>
+        촬영하여 인식
+      </button>
+
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="startScan()" id="btn-scan-start">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:18px;height:18px;stroke:currentColor"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
-          스캔 시작
+          카메라 켜기
         </button>
         <button class="btn btn-secondary" onclick="stopScan()" id="btn-scan-stop" style="display:none">
           중지
@@ -887,6 +853,84 @@ input:focus { border-color: var(--yellow); }
       </div>
 
       <div class="card">
+        <div class="card-title">바코드·QR 스캔</div>
+        <p style="font-size:12px;color:var(--text3);line-height:1.55;margin-bottom:12px">
+          스캔 탭에서 카메라를 켠 뒤 코드를 프레임에 맞추고 <strong>촬영하여 인식</strong>을 누르면 한 장으로 분석해요.
+          상품명 조회는 해외 DB(식품 위주)라 <strong>물티슈·생활용품</strong>은 없을 수 있어요. 네이버 검색·직접 입력을 쓰면 됩니다.
+        </p>
+
+        <div class="input-label" style="margin-bottom:8px">인식 모드</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button type="button" class="btn btn-secondary" id="mode-barcode" onclick="setScanMode('barcode')" style="flex:1;padding:10px;font-size:13px;border-color:var(--yellow);color:var(--yellow)">바코드</button>
+          <button type="button" class="btn btn-secondary" id="mode-qr" onclick="setScanMode('qr')" style="flex:1;padding:10px;font-size:13px">QR코드</button>
+          <button type="button" class="btn btn-secondary" id="mode-both" onclick="setScanMode('both')" style="flex:1;padding:10px;font-size:13px">자동감지</button>
+        </div>
+
+        <div class="input-group">
+          <div class="input-label">전면 / 후면</div>
+          <select id="cam-facing" onchange="onFacingSettingChange()" style="width:100%;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;padding:12px 14px;font-size:14px;color:var(--text);outline:none;-webkit-appearance:none" aria-label="카메라 앞뒤">
+            <option value="environment">후면 (기본 · 바코드 권장)</option>
+            <option value="user">전면</option>
+          </select>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.45">스캔 탭에서 카메라를 켤 때 아래 옵션이 함께 적용돼요.</p>
+
+        <div class="setting-row" style="margin-top:14px;align-items:flex-start">
+          <div>
+            <div class="setting-label">PC 웹캠 모드</div>
+            <div class="setting-sub">크롬·USB 웹캠(Osmo 등) 테스트용. 모바일 전후면(facing) 대신 OS 기본 카메라를 씁니다. 손전등은 끕니다.</div>
+          </div>
+          <label style="display:flex;align-items:center;cursor:pointer;flex-shrink:0;margin-top:2px">
+            <input type="checkbox" id="cam-pc-webcam" onchange="onPcWebcamModeChange()" aria-label="PC 웹캠 모드" style="width:22px;height:22px;accent-color:var(--yellow)">
+          </label>
+        </div>
+
+        <div style="font-weight:600;font-size:13px;color:var(--text);margin:18px 0 10px">카메라 (미리보기)</div>
+        <div class="cam-settings-grid">
+          <div class="input-group" style="margin-bottom:0">
+            <div class="input-label">카메라 장치</div>
+            <select id="cam-device" onchange="onCamSettingChange()" aria-label="카메라 장치">
+              <option value="">시스템 기본 (위 방향 따름)</option>
+            </select>
+            <div class="cam-device-actions">
+              <button type="button" class="btn btn-secondary" onclick="refreshCameraDeviceList(true)">장치 목록 새로고침</button>
+            </div>
+            <p class="cam-settings-hint" id="cam-device-hint">권한 허용 후 목록에 모델명이 보일 수 있어요. 여러 렌즈가 있으면 여기서 바꿔 실험해 보세요.</p>
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <div class="input-label">화질 (해상도 힌트)</div>
+            <select id="cam-quality" onchange="onCamSettingChange()" aria-label="카메라 해상도">
+              <option value="auto">자동</option>
+              <option value="hd">HD · 1280×720 전후</option>
+              <option value="fhd">FHD · 1920×1080 전후</option>
+            </select>
+          </div>
+          <div class="cam-settings-row">
+            <label id="cam-torch-wrap">
+              <input type="checkbox" id="cam-torch" onchange="onTorchToggle()">
+              손전등 (토치) — 어두울 때 후면 카메라만
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">바코드 범용 조회 (선택)</div>
+        <p style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">
+          물티슈·생활용품 등 <strong>모든 제품</strong>에 가깝게 하려면 Barcode Lookup API 키를 넣으세요. 키가 있으면 이 소스를 <strong>가장 먼저</strong> 조회합니다.
+          <a href="https://www.barcodelookup.com/api-documentation" target="_blank" rel="noopener" style="color:var(--yellow)">API 안내</a>
+        </p>
+        <div class="input-group">
+          <div class="input-label">Barcode Lookup API 키 (로컬 저장)</div>
+          <input type="password" id="barcode-lookup-key-input" placeholder="없으면 무료 공개 DB만 사용" style="font-size:13px;width:100%">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+          <button type="button" class="btn btn-primary" id="barcode-lookup-save-btn" onclick="saveBarcodeLookupKey()" style="flex:1">키 저장</button>
+          <span id="barcode-lookup-key-status" style="font-size:12px;color:var(--text3);white-space:nowrap"></span>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-title">기본 설정</div>
         <div class="setting-row">
           <div>
@@ -956,16 +1000,33 @@ let geminiModel = localStorage.getItem('bn_gemini_model') || 'gemini-2.5-flash-l
 let currentProduct = null;
 let scanActive = false;
 let scanMode = 'barcode'; // barcode | qr | both
-let html5QrCode = null;
+let scanPreviewStream = null;
 let scanStarting = false;
 let scanMediaAbort = null;
+let scanDecodeBusy = false;
 
 const BN_CAM = {
   facing: 'bn_cam_facing',
   device: 'bn_cam_device_id',
   quality: 'bn_cam_quality',
-  torch: 'bn_cam_torch'
+  torch: 'bn_cam_torch',
+  pcWebcam: 'bn_pc_webcam'
 };
+
+const BN_LOOKUP = { barcodeApi: 'bn_barcode_lookup_key' };
+
+function isPcWebcamMode() {
+  const el = document.getElementById('cam-pc-webcam');
+  if (el) return !!el.checked;
+  return localStorage.getItem(BN_CAM.pcWebcam) === '1';
+}
+
+function syncFacingControlForPcWebcam() {
+  const facingEl = document.getElementById('cam-facing');
+  if (!facingEl) return;
+  facingEl.disabled = isPcWebcamMode();
+  facingEl.style.opacity = facingEl.disabled ? '0.55' : '1';
+}
 
 function buildScanCameraVideoConstraints() {
   const facingEl = document.getElementById('cam-facing');
@@ -974,12 +1035,14 @@ function buildScanCameraVideoConstraints() {
   const facing = (facingEl && facingEl.value) || 'environment';
   const deviceId = (deviceEl && deviceEl.value && deviceEl.value.trim()) || '';
   const quality = (qualityEl && qualityEl.value) || 'auto';
+  const pc = isPcWebcamMode();
 
   const video = {};
   if (deviceId) {
     video.deviceId = { exact: deviceId };
+  } else if (pc) {
+    // PC·크롬: facingMode 없이 기본 웹캠(UVC). 빈 객체 = 브라우저 기본 선택
   } else {
-    // Html5Qrcode는 facingMode로 { ideal: ... } 형태를 거부함 → 문자열만 사용
     video.facingMode = facing === 'user' ? 'user' : 'environment';
   }
 
@@ -1004,12 +1067,15 @@ function loadCamSettingsFromStorage() {
   const deviceEl = document.getElementById('cam-device');
   const qualityEl = document.getElementById('cam-quality');
   const torchEl = document.getElementById('cam-torch');
+  const pcEl = document.getElementById('cam-pc-webcam');
   if (!facingEl || !deviceEl || !qualityEl || !torchEl) return;
 
   if (facing === 'environment' || facing === 'user') facingEl.value = facing;
   if (quality === 'auto' || quality === 'hd' || quality === 'fhd') qualityEl.value = quality;
   torchEl.checked = torch === '1';
+  if (pcEl) pcEl.checked = localStorage.getItem(BN_CAM.pcWebcam) === '1';
   if (device) window.__bnCamPendingDeviceId = device;
+  syncFacingControlForPcWebcam();
 }
 
 function saveCamSettingsToStorage() {
@@ -1017,22 +1083,41 @@ function saveCamSettingsToStorage() {
   const deviceEl = document.getElementById('cam-device');
   const qualityEl = document.getElementById('cam-quality');
   const torchEl = document.getElementById('cam-torch');
+  const pcEl = document.getElementById('cam-pc-webcam');
   if (!facingEl || !deviceEl || !qualityEl || !torchEl) return;
   localStorage.setItem(BN_CAM.facing, facingEl.value);
   localStorage.setItem(BN_CAM.device, deviceEl.value || '');
   localStorage.setItem(BN_CAM.quality, qualityEl.value);
   localStorage.setItem(BN_CAM.torch, torchEl.checked ? '1' : '0');
+  if (pcEl) localStorage.setItem(BN_CAM.pcWebcam, pcEl.checked ? '1' : '0');
 }
 
 function updateTorchUiState() {
   const facingEl = document.getElementById('cam-facing');
   const torchEl = document.getElementById('cam-torch');
   if (!facingEl || !torchEl) return;
+  if (isPcWebcamMode()) {
+    torchEl.disabled = true;
+    torchEl.checked = false;
+    localStorage.setItem(BN_CAM.torch, '0');
+    return;
+  }
   const isFrontDefault = facingEl.value === 'user';
   torchEl.disabled = isFrontDefault;
   if (isFrontDefault) {
     torchEl.checked = false;
     localStorage.setItem(BN_CAM.torch, '0');
+  }
+}
+
+async function onPcWebcamModeChange() {
+  saveCamSettingsToStorage();
+  updateTorchUiState();
+  syncFacingControlForPcWebcam();
+  if (scanActive) {
+    await stopScan();
+    await new Promise(r => setTimeout(r, 280));
+    await startScan();
   }
 }
 
@@ -1071,18 +1156,29 @@ async function refreshCameraDeviceList(showToastFlag) {
 
 async function applyTorchFromUi() {
   const torchEl = document.getElementById('cam-torch');
-  if (!torchEl || torchEl.disabled || !html5QrCode || !scanActive) return;
+  if (!torchEl || torchEl.disabled || !scanActive) return;
   const want = torchEl.checked;
+  const video = document.getElementById('scan-preview-video');
+  const track = video && video.srcObject && video.srcObject.getVideoTracks && video.srcObject.getVideoTracks()[0];
+  if (!track || typeof track.applyConstraints !== 'function') return;
   try {
-    if (typeof html5QrCode.applyVideoConstraints === 'function') {
-      await html5QrCode.applyVideoConstraints({ advanced: [{ torch: want }] });
-    }
+    await track.applyConstraints({ advanced: [{ torch: want }] });
   } catch (_) { /* iOS는 미지원이거나 조용히 실패 */ }
 }
 
 function onTorchToggle() {
   saveCamSettingsToStorage();
   void applyTorchFromUi();
+}
+
+async function onFacingSettingChange() {
+  updateTorchUiState();
+  saveCamSettingsToStorage();
+  if (scanActive) {
+    await stopScan();
+    await new Promise(r => setTimeout(r, 280));
+    await startScan();
+  }
 }
 
 async function onCamSettingChange() {
@@ -1109,7 +1205,18 @@ window.addEventListener('load', () => {
     statusEl.style.color = 'var(--text3)';
   }
   document.getElementById('gemini-model').value = geminiModel;
+  const blIn = document.getElementById('barcode-lookup-key-input');
+  const blSt = document.getElementById('barcode-lookup-key-status');
+  const savedBl = localStorage.getItem(BN_LOOKUP.barcodeApi) || '';
+  if (blIn && savedBl) {
+    blIn.value = savedBl;
+    if (blSt) {
+      blSt.textContent = '키 로드됨';
+      blSt.style.color = 'var(--green)';
+    }
+  }
   loadCamSettingsFromStorage();
+  setScanMode(scanMode);
   updateTorchUiState();
   void refreshCameraDeviceList(false);
   renderInventory();
@@ -1144,18 +1251,16 @@ function setScanMode(mode) {
   scanMode = mode;
   ['barcode','qr','both'].forEach(m => {
     const btn = document.getElementById('mode-' + m);
+    if (!btn) return;
     btn.style.borderColor = m === mode ? 'var(--yellow)' : 'var(--border)';
     btn.style.color = m === mode ? 'var(--yellow)' : 'var(--text2)';
   });
   const hint = document.getElementById('cam-hint');
   if (hint) {
     hint.textContent =
-      scanMode === 'qr' ? 'QR코드를 프레임 안에 맞춰주세요' :
-      scanMode === 'both' ? '바코드 또는 QR을 프레임 안에 맞춰주세요' :
-      '바코드를 프레임 안에 맞춰주세요';
-  }
-  if (scanActive) {
-    void stopScan().then(() => new Promise(r => setTimeout(r, 300))).then(() => startScan());
+      scanMode === 'qr' ? 'QR을 프레임에 맞춘 뒤 「촬영하여 인식」' :
+      scanMode === 'both' ? '바코드 또는 QR을 맞춘 뒤 「촬영하여 인식」' :
+      '바코드를 프레임에 맞춘 뒤 「촬영하여 인식」';
   }
 }
 
@@ -1176,28 +1281,385 @@ function hideScanCamError() {
 function resetScanUiButtons() {
   document.getElementById('btn-scan-start').style.display = 'flex';
   document.getElementById('btn-scan-stop').style.display = 'none';
+  const cap = document.getElementById('btn-scan-capture');
+  if (cap) cap.style.display = 'none';
   document.getElementById('scan-status').textContent = '스캔 대기 중...';
 }
 
-function getScanFormatsToSupport() {
-  const qrOnly = [Html5QrcodeSupportedFormats.QR_CODE];
-  const barcodeOnly = [
-    Html5QrcodeSupportedFormats.EAN_13,
-    Html5QrcodeSupportedFormats.EAN_8,
-    Html5QrcodeSupportedFormats.CODE_128,
-    Html5QrcodeSupportedFormats.CODE_39,
-    Html5QrcodeSupportedFormats.UPC_A,
-    Html5QrcodeSupportedFormats.UPC_E
-  ];
-  if (scanMode === 'qr') return qrOnly;
-  if (scanMode === 'barcode') return barcodeOnly;
-  return [...qrOnly, ...barcodeOnly];
+function drawVideoFrameToCanvas(video) {
+  const c = document.createElement('canvas');
+  c.width = video.videoWidth;
+  c.height = video.videoHeight;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(video, 0, 0, c.width, c.height);
+  return c;
 }
 
-function getScanQrbox() {
-  if (scanMode === 'qr') return { width: 220, height: 220 };
-  if (scanMode === 'barcode') return { width: 280, height: 140 };
-  return { width: 280, height: 140 };
+function scoreCanvasSharpness(canvas) {
+  const w = canvas.width;
+  const h = canvas.height;
+  if (w < 8 || h < 8) return 0;
+  const sc = document.createElement('canvas');
+  const scale = Math.min(200 / w, 150 / h, 0.4);
+  sc.width = Math.max(8, Math.floor(w * scale));
+  sc.height = Math.max(8, Math.floor(h * scale));
+  const ctx = sc.getContext('2d');
+  ctx.drawImage(canvas, 0, 0, sc.width, sc.height);
+  const img = ctx.getImageData(0, 0, sc.width, sc.height);
+  const d = img.data;
+  let sum = 0;
+  const step = 2;
+  for (let y = step; y < sc.height - step; y += step) {
+    for (let x = step; x < sc.width - step; x += step) {
+      const i = (y * sc.width + x) * 4;
+      const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      const gx = g - (0.299 * d[i - step * 4] + 0.587 * d[i - step * 4 + 1] + 0.114 * d[i - step * 4 + 2]);
+      const gy = g - (0.299 * d[i - step * sc.width * 4] + 0.587 * d[i - step * sc.width * 4 + 1] + 0.114 * d[i - step * sc.width * 4 + 2]);
+      sum += gx * gx + gy * gy;
+    }
+  }
+  return sum;
+}
+
+async function pickSharpestVideoFrame(video, samples, gapMs) {
+  let best = null;
+  let bestScore = -1;
+  const n = Math.max(1, samples | 0);
+  for (let i = 0; i < n; i++) {
+    const c = drawVideoFrameToCanvas(video);
+    const s = scoreCanvasSharpness(c);
+    if (s > bestScore) {
+      bestScore = s;
+      best = c;
+    }
+    if (i < n - 1) await new Promise(r => setTimeout(r, gapMs));
+  }
+  return best || drawVideoFrameToCanvas(video);
+}
+
+function canvasCssContrast(src) {
+  const c = document.createElement('canvas');
+  c.width = src.width;
+  c.height = src.height;
+  const ctx = c.getContext('2d');
+  try {
+    ctx.filter = 'contrast(1.5) brightness(1.06)';
+    ctx.drawImage(src, 0, 0);
+    ctx.filter = 'none';
+  } catch (_) {
+    ctx.drawImage(src, 0, 0);
+  }
+  return c;
+}
+
+function cropTopRightRegion(full, wr, hr) {
+  const w = full.width;
+  const h = full.height;
+  const sw = w * wr;
+  const sh = h * hr;
+  const sx = Math.max(0, w - sw - 4);
+  const sy = 4;
+  return cropRectFromCanvas(full, sx, sy, sw, sh);
+}
+
+function cropRectFromCanvas(src, sx, sy, sw, sh) {
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.floor(sw));
+  c.height = Math.max(1, Math.floor(sh));
+  const ctx = c.getContext('2d');
+  try {
+    ctx.drawImage(src, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  } catch (_) {
+    return null;
+  }
+  return c;
+}
+
+function canvasGrayscaleContrast(src, contrast, brightness) {
+  const c = document.createElement('canvas');
+  c.width = src.width;
+  c.height = src.height;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(src, 0, 0);
+  const img = ctx.getImageData(0, 0, c.width, c.height);
+  const d = img.data;
+  const ct = contrast == null ? 1.38 : contrast;
+  const br = brightness == null ? 6 : brightness;
+  for (let i = 0; i < d.length; i += 4) {
+    const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    let v = (y - 128) * ct + 128 + br;
+    v = v < 0 ? 0 : v > 255 ? 255 : v;
+    d[i] = d[i + 1] = d[i + 2] = v;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function upscaleCanvas(canvas, factor) {
+  if (!canvas || factor <= 1.01) return canvas;
+  let nw = Math.round(canvas.width * factor);
+  let nh = Math.round(canvas.height * factor);
+  const cap = 2800;
+  if (Math.max(nw, nh) > cap) {
+    const r = cap / Math.max(nw, nh);
+    nw = Math.max(1, Math.round(nw * r));
+    nh = Math.max(1, Math.round(nh * r));
+  }
+  const c = document.createElement('canvas');
+  c.width = nw;
+  c.height = nh;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(canvas, 0, 0, nw, nh);
+  return c;
+}
+
+function rotateCanvas90CW(canvas) {
+  const c = document.createElement('canvas');
+  c.width = canvas.height;
+  c.height = canvas.width;
+  const ctx = c.getContext('2d');
+  ctx.translate(c.width, 0);
+  ctx.rotate(Math.PI / 2);
+  ctx.drawImage(canvas, 0, 0);
+  return c;
+}
+
+function buildCenterCropFromFull(full) {
+  const w = full.width;
+  const h = full.height;
+  if (!w || !h) return null;
+  let sx, sy, sw, sh;
+  if (scanMode === 'qr') {
+    const side = Math.min(w, h) * 0.72;
+    sx = (w - side) / 2;
+    sy = (h - side) / 2;
+    sw = sh = side;
+  } else if (scanMode === 'barcode') {
+    sw = w * 0.86;
+    sh = h * 0.4;
+    sx = (w - sw) / 2;
+    sy = (h - sh) / 2;
+  } else {
+    sw = w * 0.88;
+    sh = h * 0.48;
+    sx = (w - sw) / 2;
+    sy = (h - sh) / 2;
+  }
+  return cropRectFromCanvas(full, sx, sy, sw, sh);
+}
+
+function stripCropFromFull(full, y0r, hr, wr) {
+  const w = full.width;
+  const h = full.height;
+  const sh = h * hr;
+  const sy = h * y0r;
+  const sw = w * wr;
+  const sx = (w - sw) / 2;
+  return cropRectFromCanvas(full, sx, sy, sw, sh);
+}
+
+function buildCaptureDecodeCandidatesFromFull(full) {
+  const out = [];
+  const push = (c) => {
+    if (!c || c.width < 24 || c.height < 24) return;
+    out.push(c);
+  };
+
+  push(full);
+  push(canvasGrayscaleContrast(full));
+  push(canvasCssContrast(full));
+  push(upscaleCanvas(full, 1.5));
+  push(upscaleCanvas(full, 2));
+
+  const cen = buildCenterCropFromFull(full);
+  if (cen) {
+    push(cen);
+    push(canvasGrayscaleContrast(cen));
+    push(canvasCssContrast(cen));
+    push(upscaleCanvas(cen, 2));
+    if (scanMode === 'qr') push(upscaleCanvas(cen, 2.5));
+  }
+
+  if (scanMode === 'qr' || scanMode === 'both') {
+    const tr = cropTopRightRegion(full, 0.48, 0.42);
+    if (tr) {
+      push(tr);
+      push(canvasGrayscaleContrast(tr));
+      push(upscaleCanvas(tr, 2.2));
+      push(upscaleCanvas(tr, 3));
+    }
+  }
+
+  if (scanMode === 'barcode' || scanMode === 'both') {
+    [
+      { y0: 0.18, hr: 0.58, wr: 0.97 },
+      { y0: 0.28, hr: 0.5, wr: 0.96 },
+      { y0: 0.4, hr: 0.42, wr: 0.94 },
+      { y0: 0.52, hr: 0.38, wr: 0.93 },
+      { y0: 0.62, hr: 0.34, wr: 0.92 }
+    ].forEach(({ y0, hr, wr }) => {
+      const s = stripCropFromFull(full, y0, hr, wr);
+      if (s) {
+        push(s);
+        push(canvasGrayscaleContrast(s));
+        push(canvasCssContrast(s));
+        push(upscaleCanvas(s, 2));
+        push(upscaleCanvas(s, 2.5));
+      }
+    });
+    const rot = rotateCanvas90CW(full);
+    push(rot);
+    push(canvasGrayscaleContrast(rot));
+    push(canvasCssContrast(rot));
+    push(upscaleCanvas(rot, 1.6));
+  }
+
+  return out;
+}
+
+async function buildCaptureDecodeCandidates(video) {
+  const full = await pickSharpestVideoFrame(video, 6, 75);
+  return buildCaptureDecodeCandidatesFromFull(full);
+}
+
+function tryZxingBrowserDecode(canvas) {
+  try {
+    const ZX = typeof ZXingBrowser !== 'undefined' ? ZXingBrowser : null;
+    if (!ZX || !ZX.BrowserMultiFormatReader) return null;
+    const reader = new ZX.BrowserMultiFormatReader();
+    const result = reader.decodeFromCanvas(canvas);
+    if (result && typeof result.getText === 'function') {
+      const t = result.getText().trim();
+      return t || null;
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function tryBarcodeDetectorOnCanvas(canvas) {
+  if (typeof BarcodeDetector === 'undefined') return null;
+  let formats;
+  if (scanMode === 'qr') {
+    formats = ['qr_code'];
+  } else if (scanMode === 'barcode') {
+    formats = ['ean_13', 'ean_8', 'code_128', 'code_39', 'code_93', 'codabar', 'upc_a', 'upc_e', 'itf'];
+  } else {
+    formats = ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'codabar', 'itf'];
+  }
+  let detector;
+  try {
+    detector = new BarcodeDetector({ formats });
+  } catch (_) {
+    try {
+      detector = new BarcodeDetector();
+    } catch (e2) {
+      return null;
+    }
+  }
+  try {
+    const codes = await detector.detect(canvas);
+    if (codes && codes.length > 0) {
+      const raw = codes[0].rawValue != null ? codes[0].rawValue : codes[0].value;
+      if (raw != null && String(raw).trim()) return String(raw).trim();
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function decodeBarcodeFromCanvas(canvas) {
+  const native = await tryBarcodeDetectorOnCanvas(canvas);
+  if (native) return native;
+
+  const zx = tryZxingBrowserDecode(canvas);
+  if (zx) return zx;
+
+  const runScan = async (blob, name, mime) => {
+    const file = new File([blob], name, { type: mime });
+    const qr = new Html5Qrcode('scan-file-reader', { verbose: false });
+    try {
+      const r = await qr.scanFile(file, false);
+      const text = typeof r === 'string' ? r : (r && (r.decodedText || r.text || r.code)) || '';
+      return text && String(text).trim() ? String(text).trim() : null;
+    } catch (_) {
+      return null;
+    } finally {
+      try { await qr.clear(); } catch (_) {}
+    }
+  };
+
+  let blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(b => (b ? resolve(b) : reject(new Error('이미지 생성 실패'))), 'image/png', 0.95);
+  });
+  let t = await runScan(blob, 'cap.png', 'image/png');
+  if (t) return t;
+
+  blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(b => (b ? resolve(b) : reject(new Error('jpeg 실패'))), 'image/jpeg', 0.93);
+  });
+  return await runScan(blob, 'cap.jpg', 'image/jpeg');
+}
+
+async function captureAndDecodeScan() {
+  if (scanDecodeBusy) return;
+  if (!scanActive) {
+    showToast('먼저 카메라 켜기를 눌러주세요');
+    return;
+  }
+  const video = document.getElementById('scan-preview-video');
+  if (!video || video.readyState < video.HAVE_CURRENT_DATA) {
+    showToast('카메라 화면이 준비될 때까지 잠시만 기다려 주세요');
+    return;
+  }
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) {
+    showToast('화면 크기를 읽을 수 없어요. 잠시 후 다시 시도해 주세요');
+    return;
+  }
+
+  scanDecodeBusy = true;
+  hideScanCamError();
+  const capBtn = document.getElementById('btn-scan-capture');
+  if (capBtn) {
+    capBtn.disabled = true;
+    capBtn.style.opacity = '0.65';
+  }
+  document.getElementById('scan-status').textContent = '촬영 분석 중...';
+
+  let decoded = null;
+  let hadHardError = false;
+  try {
+    const candidates = await buildCaptureDecodeCandidates(video);
+    const maxTries = 48;
+    for (let i = 0; i < candidates.length && i < maxTries && !decoded; i++) {
+      decoded = await decodeBarcodeFromCanvas(candidates[i]);
+    }
+  } catch (e) {
+    hadHardError = true;
+    showScanCamError('촬영 처리 중 오류가 났어요. 다시 시도해 주세요.');
+    showToast('처리 오류: ' + ((e && e.message) ? e.message : String(e)));
+  } finally {
+    scanDecodeBusy = false;
+    if (capBtn) {
+      capBtn.disabled = false;
+      capBtn.style.opacity = '1';
+    }
+    const statusCameraOn =
+      scanMode === 'qr' ? '카메라 켜짐 · QR 촬영하여 인식' :
+      scanMode === 'both' ? '카메라 켜짐 · 바코드/QR 촬영하여 인식' :
+      '카메라 켜짐 · 바코드 촬영하여 인식';
+    const statusAfter = scanActive ? statusCameraOn : '스캔 대기 중...';
+    if (!decoded) document.getElementById('scan-status').textContent = statusAfter;
+  }
+
+  if (decoded) {
+    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+    await onBarcodeDetected(decoded);
+  } else if (!hadHardError) {
+    showScanCamError('코드를 찾지 못했어요. 더 가깝게·밝게 맞춘 뒤 다시 촬영해 주세요.');
+    showToast('이 화면에서 코드가 보이지 않아요. 다시 촬영해 주세요');
+  }
 }
 
 async function startScan() {
@@ -1207,6 +1669,8 @@ async function startScan() {
 
   document.getElementById('btn-scan-start').style.display = 'none';
   document.getElementById('btn-scan-stop').style.display = 'flex';
+  const capBtn = document.getElementById('btn-scan-capture');
+  if (capBtn) capBtn.style.display = 'none';
   document.getElementById('scan-status').textContent = '카메라 권한 확인 중...';
 
   const container = document.getElementById('interactive');
@@ -1219,11 +1683,11 @@ async function startScan() {
       return;
     }
 
-    let permissionStream = null;
+    let stream = null;
     scanMediaAbort = new AbortController();
     try {
       const videoConstraints = buildScanCameraVideoConstraints();
-      permissionStream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         video: videoConstraints,
         audio: false,
         signal: scanMediaAbort.signal
@@ -1251,70 +1715,47 @@ async function startScan() {
       return;
     }
 
-    if (permissionStream && permissionStream.getTracks) {
-      permissionStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
-    }
     scanMediaAbort = null;
-
+    scanPreviewStream = stream;
     void refreshCameraDeviceList(false);
 
     scanActive = true;
-    container.innerHTML = '<div id="qr-reader" style="width:100%;height:100%;min-height:200px"></div>';
-
-    const formatsToSupport = getScanFormatsToSupport();
-    const config = {
-      fps: 20,
-      qrbox: getScanQrbox(),
-      aspectRatio: 1.0,
-      formatsToSupport,
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    };
-
+    container.innerHTML =
+      '<video id="scan-preview-video" playsinline webkit-playsinline autoplay muted ' +
+      'style="width:100%;height:100%;object-fit:cover;background:#000"></video>';
+    const video = document.getElementById('scan-preview-video');
+    video.srcObject = stream;
     try {
-      html5QrCode = new Html5Qrcode('qr-reader', { verbose: false });
-    } catch (e) {
-      try {
-        html5QrCode = new Html5Qrcode('qr-reader', false);
-      } catch (e2) {
-        showScanCamError('스캐너 초기화 실패: ' + (e2 && e2.message ? e2.message : String(e2)));
-        scanActive = false;
-        resetScanUiButtons();
-        return;
+      await video.play();
+    } catch (pe) {
+      if (scanPreviewStream) {
+        scanPreviewStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        scanPreviewStream = null;
       }
+      scanActive = false;
+      showScanCamError('비디오 재생 실패: ' + (pe && pe.message ? pe.message : String(pe)));
+      resetScanUiButtons();
+      return;
     }
 
-    try {
-      const cameraConfig = buildScanCameraVideoConstraints();
-      await html5QrCode.start(
-        cameraConfig,
-        config,
-        (decodedText) => {
-          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-          void stopScan();
-          onBarcodeDetected(decodedText);
-        },
-        () => {}
-      );
-      saveCamSettingsToStorage();
-      await applyTorchFromUi();
-      document.getElementById('scan-status').textContent =
-        scanMode === 'qr' ? 'QR코드를 비춰주세요' :
-        scanMode === 'both' ? '바코드 또는 QR을 비춰주세요' :
-        '바코드를 비춰주세요';
-    } catch (err) {
-      const detail = (err && err.message) ? err.message : String(err);
-      showScanCamError('스캔 시작 실패: ' + detail);
-      showToast('스캔 시작 실패: ' + detail);
-      scanActive = false;
-      try {
-        if (html5QrCode) {
-          await html5QrCode.stop().catch(() => {});
-          try { html5QrCode.clear(); } catch (_) {}
-          html5QrCode = null;
-        }
-      } catch (_) {}
-      resetScanUiButtons();
+    saveCamSettingsToStorage();
+    await applyTorchFromUi();
+
+    if (capBtn) capBtn.style.display = 'flex';
+    document.getElementById('scan-status').textContent =
+      scanMode === 'qr' ? '카메라 켜짐 · QR 촬영하여 인식' :
+      scanMode === 'both' ? '카메라 켜짐 · 바코드/QR 촬영하여 인식' :
+      '카메라 켜짐 · 바코드 촬영하여 인식';
+  } catch (err) {
+    const detail = (err && err.message) ? err.message : String(err);
+    showScanCamError('카메라 시작 실패: ' + detail);
+    showToast('카메라 시작 실패: ' + detail);
+    if (scanPreviewStream) {
+      scanPreviewStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+      scanPreviewStream = null;
     }
+    scanActive = false;
+    resetScanUiButtons();
   } finally {
     scanStarting = false;
   }
@@ -1326,61 +1767,464 @@ async function stopScan() {
     scanMediaAbort = null;
   }
   scanActive = false;
+  scanDecodeBusy = false;
+
+  const video = document.getElementById('scan-preview-video');
   try {
-    if (html5QrCode && typeof html5QrCode.applyVideoConstraints === 'function') {
-      await html5QrCode.applyVideoConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+    const track = video && video.srcObject && video.srcObject.getVideoTracks && video.srcObject.getVideoTracks()[0];
+    if (track && typeof track.applyConstraints === 'function') {
+      await track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
     }
   } catch (_) {}
+
   try {
-    if (html5QrCode) {
-      await html5QrCode.stop().catch(() => {});
-      try { html5QrCode.clear(); } catch (_) {}
-      html5QrCode = null;
+    if (scanPreviewStream && scanPreviewStream.getTracks) {
+      scanPreviewStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+    }
+    scanPreviewStream = null;
+    if (video && video.srcObject) {
+      video.srcObject.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+      video.srcObject = null;
     }
   } catch (_) {}
+
+  const container = document.getElementById('interactive');
+  if (container) container.innerHTML = '';
+
   document.getElementById('btn-scan-start').style.display = 'flex';
   document.getElementById('btn-scan-stop').style.display = 'none';
+  const capBtn = document.getElementById('btn-scan-capture');
+  if (capBtn) {
+    capBtn.style.display = 'none';
+    capBtn.disabled = false;
+    capBtn.style.opacity = '1';
+  }
   document.getElementById('scan-status').textContent = '스캔 대기 중...';
 }
 
+function isGtinDigits(s) {
+  return /^\d{8,14}$/.test(s);
+}
+
+/** GTIN-8/12/13/14 체크디지트 (GS1, 오른쪽부터 3·1 교대) */
+function gtinCheckDigit(bodyDigits) {
+  const rev = String(bodyDigits).replace(/\D/g, '').split('').reverse().map(Number);
+  let sum = 0;
+  for (let i = 0; i < rev.length; i++) {
+    sum += rev[i] * (i % 2 === 0 ? 3 : 1);
+  }
+  return (10 - (sum % 10)) % 10;
+}
+
+function validateGtinWithCheck(s) {
+  const d = String(s || '').replace(/\D/g, '');
+  const len = d.length;
+  if (len !== 8 && len !== 12 && len !== 13 && len !== 14) return { valid: false, digits: d };
+  const body = d.slice(0, len - 1);
+  const want = parseInt(d[len - 1], 10);
+  const calc = gtinCheckDigit(body);
+  return { valid: calc === want, digits: d, calc, want };
+}
+
+function normGtin14(s) {
+  const d = String(s || '').replace(/\D/g, '');
+  if (!d) return '';
+  return d.padStart(14, '0');
+}
+
+function sameGtinRequest(apiCode, requested) {
+  return normGtin14(apiCode) === normGtin14(requested);
+}
+
+function normalizeScanCodes(raw) {
+  const trimmed = String(raw || '').trim();
+  const compact = trimmed.replace(/\s+/g, '');
+  const digitsOnly = trimmed.replace(/\D/g, '');
+  const variants = [];
+  const push = (s) => {
+    if (s && !variants.includes(s)) variants.push(s);
+  };
+  push(trimmed);
+  push(compact);
+  if (digitsOnly.length >= 8 && digitsOnly.length <= 14) push(digitsOnly);
+  if (digitsOnly.length === 12 && validateGtinWithCheck(digitsOnly).valid) {
+    push('0' + digitsOnly);
+  }
+  return { trimmed, compact, digitsOnly, variants };
+}
+
+function pushUniqueStr(arr, s) {
+  if (s && typeof s === 'string' && !arr.includes(s)) arr.push(s);
+}
+
+function digitRunsForGtin(s) {
+  const runs = [];
+  const str = String(s || '');
+  let i = 0;
+  while (i < str.length) {
+    while (i < str.length && !/\d/.test(str[i])) i++;
+    const start = i;
+    while (i < str.length && /\d/.test(str[i])) i++;
+    if (i - start >= 8) runs.push(str.slice(start, i));
+  }
+  return runs;
+}
+
+function gtinsFromDigitRun(run) {
+  const found = [];
+  const lens = [14, 13, 12, 8];
+  const n = run.length;
+  for (let li = 0; li < lens.length; li++) {
+    const len = lens[li];
+    for (let start = 0; start + len <= n; start++) {
+      const sub = run.slice(start, start + len);
+      if (validateGtinWithCheck(sub).valid) pushUniqueStr(found, sub);
+    }
+  }
+  return found;
+}
+
+function extractGs1AiGtins(s) {
+  const out = [];
+  const str = String(s || '');
+  let m;
+  const re1 = /\(01\)(\d{14})/g;
+  while ((m = re1.exec(str)) !== null) {
+    if (validateGtinWithCheck(m[1]).valid) pushUniqueStr(out, m[1]);
+  }
+  const re2 = /\/01\/(\d{14})(?:\/|\?|#|$)/gi;
+  while ((m = re2.exec(str)) !== null) {
+    if (validateGtinWithCheck(m[1]).valid) pushUniqueStr(out, m[1]);
+  }
+  return out;
+}
+
+const URL_GTIN_PARAM_KEYS = [
+  'gtin', 'ean', 'upc', 'barcode', 'barcodeNumber', 'barCode', 'code',
+  'article', 'articlenumber', 'sku', 'product_no', 'productNo', 'prd_no', 'item_no', 'itemNo'
+];
+
+function extractGtinsFromUrlString(urlStr) {
+  const out = [];
+  let u;
+  try {
+    const withScheme = /^https?:\/\//i.test(urlStr)
+      ? urlStr
+      : 'https://' + String(urlStr).replace(/^\/+/, '');
+    u = new URL(withScheme);
+  } catch (_) {
+    return out;
+  }
+  for (let i = 0; i < URL_GTIN_PARAM_KEYS.length; i++) {
+    const v = u.searchParams.get(URL_GTIN_PARAM_KEYS[i]);
+    if (!v) continue;
+    const run = String(v).replace(/\D/g, '');
+    if (run.length < 8) continue;
+    const gts = gtinsFromDigitRun(run);
+    for (let j = 0; j < gts.length; j++) pushUniqueStr(out, gts[j]);
+  }
+  const parts = u.pathname.split('/').filter(Boolean);
+  for (let i = 0; i < parts.length; i++) {
+    const run = parts[i].replace(/\D/g, '');
+    if (run.length < 8) continue;
+    const gts = gtinsFromDigitRun(run);
+    for (let j = 0; j < gts.length; j++) pushUniqueStr(out, gts[j]);
+  }
+  const lowerPath = u.pathname.toLowerCase();
+  const prodIdx = lowerPath.indexOf('/product/');
+  if (prodIdx >= 0) {
+    const after = u.pathname.slice(prodIdx + '/product/'.length).replace(/\/.*$/, '');
+    const run = after.replace(/\D/g, '');
+    if (run.length >= 8) {
+      const gts = gtinsFromDigitRun(run);
+      for (let j = 0; j < gts.length; j++) pushUniqueStr(out, gts[j]);
+    }
+  }
+  return out;
+}
+
+function tryParseQrJson(s) {
+  const t = String(s || '').trim();
+  if (!t.startsWith('{')) return null;
+  try {
+    const o = JSON.parse(t);
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+    if ('bn' in o) {
+      return {
+        kind: 'banana',
+        bn: String(o.bn != null ? o.bn : ''),
+        name: String(o.name != null ? o.name : ''),
+        price: Number(o.price) || 0
+      };
+    }
+    return { kind: 'generic', obj: o };
+  } catch (_) {
+    return null;
+  }
+}
+
+const JSON_GTIN_KEYS = [
+  'gtin', 'ean', 'upc', 'barcode', 'productId', 'product_id', 'item_code', 'itemCode'
+];
+
+function addGtinsFromJsonObject(o, out) {
+  if (!o || typeof o !== 'object') return;
+  for (let i = 0; i < JSON_GTIN_KEYS.length; i++) {
+    const v = o[JSON_GTIN_KEYS[i]];
+    if (v == null) continue;
+    const run = String(v).replace(/\D/g, '');
+    if (run.length < 8) continue;
+    const gts = gtinsFromDigitRun(run);
+    for (let j = 0; j < gts.length; j++) pushUniqueStr(out, gts[j]);
+  }
+}
+
+function collectLookupGtinsFromRaw(trimmed, norm) {
+  const lookup = [];
+  const variants = norm.variants || [];
+  for (let i = 0; i < variants.length; i++) {
+    const v = variants[i];
+    if (!isGtinDigits(v)) continue;
+    if (validateGtinWithCheck(v).valid) pushUniqueStr(lookup, v);
+  }
+  const gs1 = extractGs1AiGtins(trimmed);
+  for (let i = 0; i < gs1.length; i++) pushUniqueStr(lookup, gs1[i]);
+
+  let urlStr = null;
+  if (/^https?:\/\//i.test(trimmed)) urlStr = trimmed;
+  else {
+    const m = trimmed.match(/https?:\/\/[^\s"'<>]+/i);
+    if (m) urlStr = m[0];
+  }
+  if (urlStr) {
+    const fromUrl = extractGtinsFromUrlString(urlStr);
+    for (let i = 0; i < fromUrl.length; i++) pushUniqueStr(lookup, fromUrl[i]);
+  }
+
+  const runs = digitRunsForGtin(trimmed);
+  for (let r = 0; r < runs.length; r++) {
+    const gts = gtinsFromDigitRun(runs[r]);
+    for (let j = 0; j < gts.length; j++) pushUniqueStr(lookup, gts[j]);
+  }
+  return lookup;
+}
+
+function gatherScanPayload(raw) {
+  const trimmed = String(raw || '').trim();
+  const displayCode = trimmed.length > 140 ? trimmed.slice(0, 137) + '…' : trimmed;
+  const norm = normalizeScanCodes(trimmed);
+  let kind = 'text';
+  if (/^WIFI:/i.test(trimmed)) kind = 'wifi';
+  else if (/^https?:\/\//i.test(trimmed) || /^www\./i.test(trimmed)) kind = 'url';
+  else if (trimmed.startsWith('{')) kind = 'json';
+
+  const qrJson = tryParseQrJson(trimmed);
+  let banana = null;
+  const lookupGtins = collectLookupGtinsFromRaw(trimmed, norm);
+
+  if (qrJson && qrJson.kind === 'banana') {
+    banana = qrJson;
+    const bnDigits = banana.bn.replace(/\D/g, '');
+    if (bnDigits.length >= 8 && bnDigits.length <= 14 && validateGtinWithCheck(bnDigits).valid) {
+      pushUniqueStr(lookupGtins, bnDigits);
+    }
+  } else if (qrJson && qrJson.kind === 'generic') {
+    addGtinsFromJsonObject(qrJson.obj, lookupGtins);
+  }
+
+  return { trimmed, displayCode, norm, kind, banana, qrJson, lookupGtins };
+}
+
+const OPEN_FACTS_SOURCES = [
+  { label: 'Open Food Facts', base: 'https://world.openfoodfacts.org' },
+  { label: 'Open Beauty Facts', base: 'https://world.openbeautyfacts.org' },
+  { label: 'Open Pet Food Facts', base: 'https://world.openpetfoodfacts.org' },
+  { label: 'Open Products Facts', base: 'https://world.openproductsfacts.org' }
+];
+
+async function tryBarcodeLookupV3(gtin) {
+  const key = (localStorage.getItem(BN_LOOKUP.barcodeApi) || '').trim();
+  if (!key) return null;
+  try {
+    const url =
+      'https://api.barcodelookup.com/v3/products?barcode=' +
+      encodeURIComponent(gtin) +
+      '&formatted=y&key=' +
+      encodeURIComponent(key);
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.products || !data.products.length) return null;
+    const p = data.products[0];
+    const num = String(p.barcode_number != null ? p.barcode_number : '').replace(/\D/g, '');
+    if (num && !sameGtinRequest(num, gtin)) return null;
+    const name = (p.title || p.category || '').trim() || String(p.brand || '').trim();
+    const brand = (p.brand || p.manufacturer || '').trim();
+    if (!name && !brand) return null;
+    return { name: name || gtin, brand, sourceLabel: 'Barcode Lookup' };
+  } catch (_) {
+    return null;
+  }
+}
+
+async function tryOpenFactsProduct(baseUrl, gtin, sourceLabel) {
+  try {
+    if (!isGtinDigits(gtin) || !validateGtinWithCheck(gtin).valid) return null;
+    const res = await fetch(`${baseUrl}/api/v0/product/${encodeURIComponent(gtin)}.json`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.status !== 1 || !data.product) return null;
+    const apiCode = data.code != null ? String(data.code) : (data.product.code != null ? String(data.product.code) : '');
+    const apiDigits = apiCode.replace(/\D/g, '');
+    if (apiDigits && !sameGtinRequest(apiDigits, gtin)) return null;
+    const p = data.product;
+    const name = (p.product_name_ko || p.product_name || p.product_name_en || p.brands || '').trim() || gtin;
+    const brand = (p.brands || '').trim();
+    return { name, brand, sourceLabel };
+  } catch (_) {
+    return null;
+  }
+}
+
+async function tryUpcItemDb(gtin) {
+  try {
+    if (!isGtinDigits(gtin) || !validateGtinWithCheck(gtin).valid) return null;
+    const res2 = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(gtin)}`);
+    if (!res2.ok) return null;
+    const data2 = await res2.json();
+    if (!data2.items || !data2.items.length) return null;
+    const match = data2.items.find(it => {
+      const e = String(it.ean || it.upc || '').replace(/\D/g, '');
+      return e && sameGtinRequest(e, gtin);
+    });
+    if (!match) return null;
+    return {
+      name: (match.title || gtin).trim(),
+      brand: (match.brand || '').trim(),
+      sourceLabel: 'UPCitemdb'
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+async function lookupGtinOneVariant(gtin) {
+  const bl = await tryBarcodeLookupV3(gtin);
+  if (bl) return bl;
+  for (let i = 0; i < OPEN_FACTS_SOURCES.length; i++) {
+    const s = OPEN_FACTS_SOURCES[i];
+    const r = await tryOpenFactsProduct(s.base, gtin, s.label);
+    if (r) return r;
+  }
+  return await tryUpcItemDb(gtin);
+}
+
+function saveBarcodeLookupKey() {
+  const input = document.getElementById('barcode-lookup-key-input');
+  const status = document.getElementById('barcode-lookup-key-status');
+  if (!input) return;
+  const v = input.value.trim();
+  localStorage.setItem(BN_LOOKUP.barcodeApi, v);
+  if (status) {
+    status.textContent = v ? '저장됨' : '비움 · 무료 DB만';
+    status.style.color = v ? 'var(--green)' : 'var(--text3)';
+  }
+  showToast(v ? '바코드 범용 조회 키를 저장했어요' : '키를 비웠어요 · 공개 DB만 사용');
+}
+
 async function onBarcodeDetected(code) {
-  document.getElementById('scan-status').textContent = '인식됨: ' + code;
+  hideScanCamError();
+  const payload = gatherScanPayload(code);
+  const { trimmed, displayCode, norm, kind, banana, lookupGtins } = payload;
+  const { compact, digitsOnly } = norm;
+
+  document.getElementById('scan-status').textContent = '인식됨: ' + displayCode;
   document.getElementById('scan-status').className = 'scan-status detected';
-  document.getElementById('scan-barcode-num').textContent = '바코드: ' + code;
+  let subLabel = '바코드: ';
+  if (kind === 'url' || kind === 'json') subLabel = 'QR: ';
+  if (banana) subLabel = 'QR(바나나): ';
+  let subText = subLabel + displayCode;
+  if (lookupGtins.length) {
+    const first = lookupGtins[0];
+    const rawDigits = trimmed.replace(/\D/g, '');
+    if (rawDigits !== first || trimmed.length > 18 || kind === 'url' || kind === 'json') {
+      subText += ' · 조회 GTIN ' + (lookupGtins.length > 1 ? first + ' 외 ' + (lookupGtins.length - 1) : first);
+    }
+  }
+  document.getElementById('scan-barcode-num').textContent = subText;
   document.getElementById('scan-result').className = 'result-show';
   document.getElementById('scan-product-name').textContent = '조회 중...';
   document.getElementById('scan-naver-price').textContent = '조회 중...';
 
-  currentProduct = { barcode: code, name: code, source: 'scan' };
+  const primaryCode = lookupGtins[0] || compact || trimmed;
+  currentProduct = { barcode: primaryCode, name: displayCode, source: 'scan' };
+  if (banana) {
+    currentProduct.bnCode = banana.bn;
+    currentProduct.name = banana.name || currentProduct.name;
+    currentProduct.sellPrice = banana.price || 0;
+    currentProduct.barcode = lookupGtins[0] || banana.bn || primaryCode;
+  }
 
-  // Open Product Data API로 제품명 조회
+  let resolvedName = null;
+  let resolvedBrand = '';
+  let foundFromApi = false;
+
   try {
-    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
-    const data = await res.json();
-    if (data.status === 1 && data.product) {
-      const p = data.product;
-      const name = p.product_name_ko || p.product_name || p.brands || code;
-      const brand = p.brands || '';
-      document.getElementById('scan-product-name').textContent = name + (brand ? ` (${brand})` : '');
-      currentProduct.name = name;
-      currentProduct.brand = brand;
-    } else {
-      // Open Food Facts에 없으면 UPC 데이터베이스 시도
-      const res2 = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${code}`);
-      const data2 = await res2.json();
-      if (data2.items && data2.items.length > 0) {
-        const item = data2.items[0];
-        const name = item.title || code;
-        document.getElementById('scan-product-name').textContent = name;
-        currentProduct.name = name;
-        currentProduct.brand = item.brand || '';
-      } else {
-        document.getElementById('scan-product-name').textContent = '상품명을 직접 입력해주세요';
-        currentProduct.name = code;
-      }
+    let hit = null;
+    for (let vi = 0; vi < lookupGtins.length; vi++) {
+      hit = await lookupGtinOneVariant(lookupGtins[vi]);
+      if (hit) break;
     }
-  } catch(e) {
-    document.getElementById('scan-product-name').textContent = '상품명을 직접 입력해주세요';
+    if (hit) {
+      foundFromApi = true;
+      resolvedName = hit.name;
+      resolvedBrand = hit.brand || '';
+      document.getElementById('scan-product-name').textContent =
+        resolvedName + (resolvedBrand ? ` (${resolvedBrand})` : '');
+      currentProduct.name = resolvedName;
+      currentProduct.brand = resolvedBrand;
+    } else if (lookupGtins.length) {
+      const hasBlKey = !!(localStorage.getItem(BN_LOOKUP.barcodeApi) || '').trim();
+      document.getElementById('scan-product-name').textContent =
+        '무료 공개 DB에 없음 (GTIN ' +
+        lookupGtins.join(', ') +
+        ')' +
+        (hasBlKey ? ' · 키가 맞는지 확인해 주세요.' : ' · 설정에서 Barcode Lookup 키를 넣으면 물티슈 등 범위가 넓어져요.') +
+        ' 네이버로도 검색해 보세요.';
+      currentProduct.name = banana && banana.name ? banana.name : lookupGtins[0];
+    } else if (isGtinDigits(digitsOnly) || isGtinDigits(compact)) {
+      const chk = validateGtinWithCheck(isGtinDigits(compact) ? compact : digitsOnly);
+      if (!chk.valid) {
+        document.getElementById('scan-product-name').textContent =
+          displayCode + ' · 숫자 체크섬 불일치(오인식 가능). 다시 촬영하거나 직접 입력해 주세요.';
+        currentProduct.name = displayCode;
+      } else {
+        const hasBlKey = !!(localStorage.getItem(BN_LOOKUP.barcodeApi) || '').trim();
+        document.getElementById('scan-product-name').textContent =
+          '무료 공개 DB에 없음' +
+          (hasBlKey ? ' · 키가 맞는지 확인해 주세요.' : ' · 설정에서 Barcode Lookup 키를 넣으면 물티슈 등 범위가 넓어져요.') +
+          ' 네이버로도 검색해 보세요 (코드: ' + displayCode + ')';
+        currentProduct.name = displayCode;
+      }
+    } else if (kind === 'wifi') {
+      document.getElementById('scan-product-name').textContent =
+        'Wi-Fi 연결용 QR · 상품 GTIN이 없어요. 매장 바코드/제품 QR을 스캔해 주세요.';
+      currentProduct.name = displayCode;
+    } else if (banana) {
+      document.getElementById('scan-product-name').textContent =
+        (banana.name || displayCode) +
+        ' · 내부 BN 코드는 공개 DB와 연결되지 않을 수 있어요. 네이버로 검색하거나 상품명을 수정하세요.';
+      currentProduct.name = banana.name || displayCode;
+    } else {
+      document.getElementById('scan-product-name').textContent =
+        displayCode +
+        ' · URL/문자 QR은 링크 안의 바코드 숫자를 찾으면 조회해요. 없으면 네이버로 검색하세요.';
+      currentProduct.name = displayCode;
+    }
+  } catch (e) {
+    document.getElementById('scan-product-name').textContent =
+      displayCode + ' · 조회 오류. 네이버 링크로 검색해 보세요.';
+    currentProduct.name = displayCode;
   }
 
   // 상품명 직접 수정 가능하게
@@ -1390,8 +2234,19 @@ async function onBarcodeDetected(code) {
   document.getElementById('scan-product-name').style.borderRadius = '4px';
   document.getElementById('scan-product-name').title = '탭하여 수정 가능';
 
+  const naverQ = foundFromApi && resolvedName
+    ? [resolvedBrand, resolvedName, primaryCode].filter(Boolean).join(' ').slice(0, 160)
+    : banana && banana.name
+      ? [banana.name, banana.bn, primaryCode].filter(Boolean).join(' ').slice(0, 160)
+      : displayCode;
+  const q = encodeURIComponent(naverQ);
+  const naverAll = `https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=0&ie=utf8&query=${q}`;
+  const naverShop = `https://search.shopping.naver.com/search/all?query=${q}`;
   document.getElementById('scan-naver-price').innerHTML =
-    `<a href="https://search.shopping.naver.com/search/all?query=${encodeURIComponent(currentProduct.name || code)}" target="_blank" style="color:var(--yellow);font-size:13px">네이버 가격 확인 →</a>`;
+    `<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">` +
+    `<a href="${naverAll}" target="_blank" rel="noopener" style="color:var(--yellow);font-size:13px">네이버 통합검색 →</a>` +
+    `<a href="${naverShop}" target="_blank" rel="noopener" style="color:var(--yellow);font-size:13px;opacity:0.9">네이버 가격비교 →</a>` +
+    `</div>`;
 }
 
 function manualLookup() {
