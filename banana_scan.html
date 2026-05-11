@@ -387,8 +387,17 @@ input:focus { border-color: var(--yellow); }
   border-radius: var(--radius-sm);
   margin-bottom: 8px;
   transition: all 0.2s;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 .inv-item:active { opacity: 0.8; }
+.inv-detail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.inv-detail-actions .btn { margin-bottom: 0; }
 .inv-left {}
 .inv-name { font-size: 14px; font-weight: 600; color: var(--text); }
 .inv-code { font-size: 11px; color: var(--text3); margin-top: 2px; }
@@ -752,8 +761,13 @@ input:focus { border-color: var(--yellow); }
 
     <!-- 생성 탭 -->
     <div class="screen" id="screen-barcode">
-      <div class="section-title">바코드 생성</div>
-      <div class="section-sub">상품 등록 후 라벨을 출력하세요</div>
+      <div class="section-title">라벨 생성</div>
+      <div class="section-sub">바코드 라벨 또는 QR 라벨 중 하나를 골라 출력하세요</div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button type="button" class="btn btn-secondary" id="create-mode-barcode" onclick="setCreateOutputMode('barcode')" style="flex:1;padding:10px;font-size:13px;border-color:var(--yellow);color:var(--yellow)">바코드 라벨</button>
+        <button type="button" class="btn btn-secondary" id="create-mode-qr" onclick="setCreateOutputMode('qr')" style="flex:1;padding:10px;font-size:13px">QR 라벨</button>
+      </div>
 
       <div id="barcode-empty" class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="12"/></svg>
@@ -761,6 +775,7 @@ input:focus { border-color: var(--yellow); }
       </div>
 
       <div id="barcode-content" class="result-hidden">
+        <div id="create-barcode-block">
         <div class="card">
           <div class="card-title">바코드</div>
           <div class="barcode-wrap">
@@ -769,12 +784,15 @@ input:focus { border-color: var(--yellow); }
             <div style="font-size:12px;color:#666;margin-top:4px" id="barcode-display-name"></div>
           </div>
         </div>
+        </div>
 
+        <div id="create-qr-block" style="display:none">
         <div class="card">
           <div class="card-title">QR 코드</div>
           <div class="qr-wrap">
             <canvas id="qr-canvas"></canvas>
           </div>
+        </div>
         </div>
 
         <div class="card">
@@ -796,11 +814,11 @@ input:focus { border-color: var(--yellow); }
         </div>
 
         <div class="btn-row">
-          <button class="btn btn-secondary" onclick="printBarcode()">
+          <button type="button" class="btn btn-secondary" onclick="printBarcode()" id="btn-print-label">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:16px;height:16px;stroke:currentColor"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            인쇄
+            <span id="btn-print-label-text">인쇄 (바코드)</span>
           </button>
-          <button class="btn btn-primary" onclick="saveToInventory()">재고 저장</button>
+          <button type="button" class="btn btn-primary" onclick="saveToInventory()">재고 저장</button>
         </div>
       </div>
     </div>
@@ -811,6 +829,25 @@ input:focus { border-color: var(--yellow); }
       <div class="section-sub" id="inv-count">등록된 상품 0개</div>
 
       <div id="inv-list"></div>
+
+      <div id="inv-detail" class="card result-hidden" style="margin-top:4px">
+        <div class="card-title">상품 상세</div>
+        <div class="ai-rows">
+          <div class="ai-row"><span class="ai-key">상품명</span><span class="ai-val" id="inv-d-name">-</span></div>
+          <div class="ai-row"><span class="ai-key">브랜드</span><span class="ai-val" id="inv-d-brand">-</span></div>
+          <div class="ai-row"><span class="ai-key">분류</span><span class="ai-val" id="inv-d-category">-</span></div>
+          <div class="ai-row"><span class="ai-key">BN / 바코드</span><span class="ai-val" id="inv-d-codes">-</span></div>
+          <div class="ai-row"><span class="ai-key">매입가</span><span class="ai-val" id="inv-d-buy">-</span></div>
+          <div class="ai-row"><span class="ai-key">판매가</span><span class="ai-val" id="inv-d-sell" style="color:var(--yellow)">-</span></div>
+          <div class="ai-row"><span class="ai-key">마진</span><span class="ai-val" id="inv-d-margin">-</span></div>
+          <div class="ai-row"><span class="ai-key">재고 수량</span><span class="ai-val" id="inv-d-stock">-</span></div>
+          <div class="ai-row"><span class="ai-key">등록일</span><span class="ai-val" id="inv-d-created">-</span></div>
+        </div>
+        <div class="inv-detail-actions">
+          <button type="button" class="btn btn-primary" onclick="loadInventoryItemToCreate()">이 상품으로 라벨 / QR</button>
+          <button type="button" class="btn btn-secondary" onclick="closeInventoryDetail()">닫기</button>
+        </div>
+      </div>
 
       <div id="inv-empty" class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
@@ -999,7 +1036,9 @@ let geminiKey = localStorage.getItem('bn_gemini_key') || '';
 let geminiModel = localStorage.getItem('bn_gemini_model') || 'gemini-2.5-flash-lite';
 let currentProduct = null;
 let scanActive = false;
-let scanMode = 'barcode'; // barcode | qr | both
+let scanMode = 'both'; // barcode | qr | both
+let createOutputMode = 'barcode'; // barcode | qr — 라벨 생성 탭
+let selectedInventoryId = null;
 let scanPreviewStream = null;
 let scanStarting = false;
 let scanMediaAbort = null;
@@ -1014,6 +1053,15 @@ const BN_CAM = {
 };
 
 const BN_LOOKUP = { barcodeApi: 'bn_barcode_lookup_key' };
+const BN_CREATE = 'bn_create_output';
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 function isPcWebcamMode() {
   const el = document.getElementById('cam-pc-webcam');
@@ -1217,11 +1265,15 @@ window.addEventListener('load', () => {
   }
   loadCamSettingsFromStorage();
   setScanMode(scanMode);
+  createOutputMode = localStorage.getItem(BN_CREATE) === 'qr' ? 'qr' : 'barcode';
+  syncCreateModeButtons();
+  updateCreatePrintButtonText();
   updateTorchUiState();
   void refreshCameraDeviceList(false);
   renderInventory();
   const saved = localStorage.getItem('bn_theme');
   if (saved === 'light') { isDark = false; applyTheme(); }
+  setTimeout(() => { void startScan(); }, 200);
 });
 
 // ===== 테마 =====
@@ -1244,6 +1296,9 @@ function switchTab(tab) {
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab !== 'scan') void stopScan();
   if (tab === 'inventory') renderInventory();
+  if (tab === 'scan') {
+    setTimeout(() => { void startScan(); }, 80);
+  }
 }
 
 // ===== 바코드 스캔 =====
@@ -2376,6 +2431,99 @@ async function analyzeWithGemini(dataUrl) {
   }
 }
 
+function syncCreateModeButtons() {
+  ['barcode', 'qr'].forEach(m => {
+    const btn = document.getElementById('create-mode-' + m);
+    if (!btn) return;
+    btn.style.borderColor = m === createOutputMode ? 'var(--yellow)' : 'var(--border)';
+    btn.style.color = m === createOutputMode ? 'var(--yellow)' : 'var(--text2)';
+  });
+}
+
+function updateCreateOutputVisibility() {
+  const bb = document.getElementById('create-barcode-block');
+  const qb = document.getElementById('create-qr-block');
+  if (!bb || !qb) return;
+  if (createOutputMode === 'qr') {
+    bb.style.display = 'none';
+    qb.style.display = 'block';
+  } else {
+    bb.style.display = 'block';
+    qb.style.display = 'none';
+  }
+}
+
+function updateCreatePrintButtonText() {
+  const el = document.getElementById('btn-print-label-text');
+  if (!el) return;
+  el.textContent = createOutputMode === 'qr' ? '인쇄 (QR)' : '인쇄 (바코드)';
+}
+
+function setCreateOutputMode(mode) {
+  if (mode !== 'barcode' && mode !== 'qr') return;
+  createOutputMode = mode;
+  localStorage.setItem(BN_CREATE, mode);
+  syncCreateModeButtons();
+  updateCreateOutputVisibility();
+  updateCreatePrintButtonText();
+}
+
+function openInventoryDetail(id) {
+  const item = inventory.find(x => x.id === id);
+  if (!item) return;
+  selectedInventoryId = id;
+  const panel = document.getElementById('inv-detail');
+  if (!panel) return;
+  document.getElementById('inv-d-name').textContent = item.name || '-';
+  document.getElementById('inv-d-brand').textContent = item.brand || '-';
+  document.getElementById('inv-d-category').textContent = item.category || '미분류';
+  const codes = [item.bnCode, item.barcode].filter(Boolean).join(' · ') || '-';
+  document.getElementById('inv-d-codes').textContent = codes;
+  document.getElementById('inv-d-buy').textContent =
+    item.buyPrice ? Number(item.buyPrice).toLocaleString() + '원' : '-';
+  document.getElementById('inv-d-sell').textContent =
+    item.sellPrice ? Number(item.sellPrice).toLocaleString() + '원' : '-';
+  document.getElementById('inv-d-margin').textContent =
+    item.margin != null ? String(item.margin) + '%' : '-';
+  document.getElementById('inv-d-stock').textContent =
+    item.stock != null ? String(item.stock) + '개' : '-';
+  document.getElementById('inv-d-created').textContent = item.createdAt || '-';
+  panel.className = 'card result-show';
+  try {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (_) {}
+}
+
+function closeInventoryDetail() {
+  selectedInventoryId = null;
+  const panel = document.getElementById('inv-detail');
+  if (panel) panel.className = 'card result-hidden';
+}
+
+function loadInventoryItemToCreate() {
+  if (selectedInventoryId == null) return;
+  const item = inventory.find(x => x.id === selectedInventoryId);
+  if (!item) {
+    showToast('항목을 찾을 수 없어요');
+    return;
+  }
+  currentProduct = {
+    bnCode: item.bnCode,
+    barcode: item.barcode,
+    name: item.name,
+    brand: item.brand || '',
+    category: item.category || '',
+    buyPrice: item.buyPrice || 0,
+    sellPrice: item.sellPrice || 0,
+    margin: item.margin != null ? item.margin : 30,
+    source: 'inventory'
+  };
+  closeInventoryDetail();
+  switchTab('barcode');
+  renderBarcodeScreen();
+  showToast('생성 탭에서 라벨을 확인하세요');
+}
+
 // ===== 바코드 생성 =====
 function generateBarcode() {
   if (!currentProduct) { showToast('먼저 상품을 인식해주세요'); return; }
@@ -2435,24 +2583,81 @@ function renderBarcodeScreen() {
   document.getElementById('barcode-display-num').textContent = code;
   document.getElementById('barcode-display-name').textContent = p.name || '';
 
-  // QR
   const qrData = JSON.stringify({ bn: code, name: p.name, price: p.sellPrice || 0 });
   QRCode.toCanvas(document.getElementById('qr-canvas'), qrData, { width: 160, margin: 2 }, err => {
     if (err) console.error(err);
+    updateCreateOutputVisibility();
+    updateCreatePrintButtonText();
   });
 
   document.getElementById('bc-name').textContent = p.name || '-';
   document.getElementById('bc-code').textContent = code;
   document.getElementById('bc-price').textContent = p.sellPrice ? p.sellPrice.toLocaleString() + '원' : '-';
+
+  updateCreateOutputVisibility();
+  updateCreatePrintButtonText();
 }
 
 // ===== 인쇄 =====
 function printBarcode() {
-  const svg = document.getElementById('barcode-svg').outerHTML;
-  const name = currentProduct?.name || '';
-  const code = currentProduct?.bnCode || '';
+  if (!currentProduct) {
+    showToast('상품 정보가 없어요');
+    return;
+  }
+  const name = currentProduct.name || '';
+  const code = currentProduct.bnCode || currentProduct.barcode || '';
 
   const win = window.open('', '_blank');
+  if (!win) {
+    showToast('팝업이 막혀 있어요');
+    return;
+  }
+
+  if (createOutputMode === 'qr') {
+    const canvas = document.getElementById('qr-canvas');
+    if (!canvas || typeof canvas.toDataURL !== 'function') {
+      showToast('QR 캔버스를 찾을 수 없어요');
+      return;
+    }
+    let dataUrl = '';
+    try {
+      dataUrl = canvas.toDataURL('image/png');
+    } catch (e) {
+      showToast('QR 이미지를 만들 수 없어요');
+      return;
+    }
+    const safeName = escapeHtml(name);
+    const safeCode = escapeHtml(code);
+    win.document.write(`
+    <html><head><title>QR 인쇄</title>
+    <style>
+      body { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; padding: 10mm; }
+      .label { text-align: center; border: 1px solid #eee; padding: 5mm; break-inside: avoid; }
+      .label img { width: 140px; height: 140px; image-rendering: pixelated; }
+      .label p { font-size: 10px; margin-top: 3px; font-family: monospace; }
+      .label .nm { font-size: 9px; color: #666; }
+      @media print { body { margin: 0; } }
+    </style></head><body>
+    ${[1, 2, 3, 4].map(() => `
+      <div class="label">
+        <img src="${dataUrl}" alt="QR">
+        <p>${safeCode}</p>
+        <p class="nm">${safeName}</p>
+      </div>
+    `).join('')}
+    <script>window.onload=()=>{window.print();window.close();}<\/script>
+    </body></html>
+  `);
+    win.document.close();
+    return;
+  }
+
+  const svgEl = document.getElementById('barcode-svg');
+  if (!svgEl) {
+    showToast('바코드를 먼저 생성해 주세요');
+    return;
+  }
+  const svg = svgEl.outerHTML;
   win.document.write(`
     <html><head><title>바코드 인쇄</title>
     <style>
@@ -2466,8 +2671,8 @@ function printBarcode() {
     ${[1,2,3,4].map(() => `
       <div class="label">
         ${svg}
-        <p>${code}</p>
-        <p class="nm">${name}</p>
+        <p>${escapeHtml(code)}</p>
+        <p class="nm">${escapeHtml(name)}</p>
       </div>
     `).join('')}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
@@ -2497,6 +2702,7 @@ function saveToInventory() {
   inventory.unshift(item);
   localStorage.setItem('bn_inventory', JSON.stringify(inventory));
   showToast('재고에 저장했어요 🍌');
+  closeInventoryDetail();
   setTimeout(() => switchTab('inventory'), 800);
 }
 
@@ -2511,22 +2717,33 @@ function renderInventory() {
   if (inventory.length === 0) {
     list.innerHTML = '';
     empty.style.display = 'block';
+    closeInventoryDetail();
     return;
   }
 
+  if (selectedInventoryId != null && !inventory.some(x => x.id === selectedInventoryId)) {
+    closeInventoryDetail();
+  }
+
   empty.style.display = 'none';
-  list.innerHTML = inventory.map(item => `
-    <div class="inv-item">
+  list.innerHTML = inventory.map(item => {
+    const id = item.id;
+    const nm = escapeHtml(item.name);
+    const codeLine = escapeHtml(`${item.bnCode || item.barcode || '-'} · ${item.category || '미분류'}`);
+    const price = item.sellPrice ? item.sellPrice.toLocaleString() + '원' : '-';
+    const low = item.stock < 3 ? ' low' : '';
+    return `
+    <div class="inv-item" role="button" tabindex="0" onclick="openInventoryDetail(${id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openInventoryDetail(${id});}">
       <div class="inv-left">
-        <div class="inv-name">${item.name}</div>
-        <div class="inv-code">${item.bnCode || item.barcode || '-'} · ${item.category || '미분류'}</div>
+        <div class="inv-name">${nm}</div>
+        <div class="inv-code">${codeLine}</div>
       </div>
       <div class="inv-right">
-        <div class="inv-price">${item.sellPrice ? item.sellPrice.toLocaleString() + '원' : '-'}</div>
-        <div class="inv-stock ${item.stock < 3 ? 'low' : ''}">재고 ${item.stock}개</div>
+        <div class="inv-price">${price}</div>
+        <div class="inv-stock${low}">재고 ${item.stock}개</div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 // ===== 설정 =====
@@ -2580,6 +2797,7 @@ function clearInventory() {
   if (confirm('재고를 모두 삭제할까요?')) {
     inventory = [];
     localStorage.setItem('bn_inventory', '[]');
+    closeInventoryDetail();
     renderInventory();
     showToast('삭제됐어요');
   }
