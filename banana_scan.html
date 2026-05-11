@@ -873,20 +873,59 @@ input:focus { border-color: var(--yellow); }
       <div id="inv-list"></div>
 
       <div id="inv-detail" class="card result-hidden" style="margin-top:4px">
-        <div class="card-title">상품 상세</div>
-        <div class="ai-rows">
-          <div class="ai-row"><span class="ai-key">상품명</span><span class="ai-val" id="inv-d-name">-</span></div>
-          <div class="ai-row"><span class="ai-key">브랜드</span><span class="ai-val" id="inv-d-brand">-</span></div>
-          <div class="ai-row"><span class="ai-key">분류</span><span class="ai-val" id="inv-d-category">-</span></div>
-          <div class="ai-row"><span class="ai-key">BN / 바코드</span><span class="ai-val" id="inv-d-codes">-</span></div>
-          <div class="ai-row"><span class="ai-key">매입가</span><span class="ai-val" id="inv-d-buy">-</span></div>
-          <div class="ai-row"><span class="ai-key">판매가</span><span class="ai-val" id="inv-d-sell" style="color:var(--yellow)">-</span></div>
-          <div class="ai-row"><span class="ai-key">마진</span><span class="ai-val" id="inv-d-margin">-</span></div>
-          <div class="ai-row"><span class="ai-key">재고 수량</span><span class="ai-val" id="inv-d-stock">-</span></div>
-          <div class="ai-row"><span class="ai-key">등록일</span><span class="ai-val" id="inv-d-created">-</span></div>
+        <div class="card-title">상품 상세 · 수정</div>
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 10px;line-height:1.45">값을 고친 뒤 <strong>변경 저장</strong>을 누르면 재고에 반영돼요.</p>
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-label">상품명</div>
+          <input type="text" id="inv-edit-name" autocomplete="off" placeholder="상품명">
+        </div>
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-label">브랜드</div>
+          <input type="text" id="inv-edit-brand" autocomplete="off" placeholder="브랜드">
+        </div>
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-label">분류</div>
+          <input type="text" id="inv-edit-category" autocomplete="off" placeholder="카테고리">
+        </div>
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-label">BN 코드</div>
+          <input type="text" id="inv-edit-bncode" autocomplete="off" placeholder="BN123456">
+        </div>
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-label">바코드 (GTIN 등)</div>
+          <input type="text" id="inv-edit-barcode" autocomplete="off" placeholder="숫자 바코드">
+        </div>
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-label">매입가</div>
+          <div class="won-field">
+            <input type="text" class="won-input" inputmode="numeric" id="inv-edit-buy" autocomplete="off" aria-label="재고 매입가"
+              oninput="onInvEditBuyInput(event)">
+            <span class="won-suffix">원</span>
+          </div>
+        </div>
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-label">마진율 %</div>
+          <input type="number" id="inv-edit-margin" value="30" min="0" max="500" step="1" onchange="recalcInvDetailSellFromBuyMargin()" oninput="recalcInvDetailSellFromBuyMargin()">
+        </div>
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-label">판매가 (직접 수정 가능)</div>
+          <div class="won-field">
+            <input type="text" class="won-input" inputmode="numeric" id="inv-edit-sell" autocomplete="off" aria-label="재고 판매가"
+              oninput="onInvEditSellInput(event)">
+            <span class="won-suffix">원</span>
+          </div>
+        </div>
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-label">재고 수량</div>
+          <input type="number" id="inv-edit-stock" min="0" step="1" value="1">
+        </div>
+        <div class="ai-row" style="padding:8px 0;border-bottom:0.5px solid var(--border)">
+          <span class="ai-key">등록일</span>
+          <span class="ai-val" id="inv-d-created">-</span>
         </div>
         <div class="inv-detail-actions">
-          <button type="button" class="btn btn-primary" onclick="loadInventoryItemToCreate()">이 상품으로 라벨 / QR</button>
+          <button type="button" class="btn btn-primary" onclick="saveInventoryEdit()">변경 저장</button>
+          <button type="button" class="btn btn-secondary" onclick="loadInventoryItemToCreate()">이 상품으로 라벨 / QR</button>
           <button type="button" class="btn btn-secondary" onclick="closeInventoryDetail()">닫기</button>
         </div>
       </div>
@@ -2597,24 +2636,89 @@ function openInventoryDetail(id) {
   selectedInventoryId = id;
   const panel = document.getElementById('inv-detail');
   if (!panel) return;
-  document.getElementById('inv-d-name').textContent = item.name || '-';
-  document.getElementById('inv-d-brand').textContent = item.brand || '-';
-  document.getElementById('inv-d-category').textContent = item.category || '미분류';
-  const codes = [item.bnCode, item.barcode].filter(Boolean).join(' · ') || '-';
-  document.getElementById('inv-d-codes').textContent = codes;
-  document.getElementById('inv-d-buy').textContent =
-    item.buyPrice ? Number(item.buyPrice).toLocaleString() + '원' : '-';
-  document.getElementById('inv-d-sell').textContent =
-    item.sellPrice ? Number(item.sellPrice).toLocaleString() + '원' : '-';
-  document.getElementById('inv-d-margin').textContent =
-    item.margin != null ? String(item.margin) + '%' : '-';
-  document.getElementById('inv-d-stock').textContent =
-    item.stock != null ? String(item.stock) + '개' : '-';
+  document.getElementById('inv-edit-name').value = item.name || '';
+  document.getElementById('inv-edit-brand').value = item.brand || '';
+  document.getElementById('inv-edit-category').value = item.category || '';
+  document.getElementById('inv-edit-bncode').value = item.bnCode || '';
+  document.getElementById('inv-edit-barcode').value = item.barcode || '';
+  hydrateBuyPriceField('inv-edit-buy', item.buyPrice || 0);
+  document.getElementById('inv-edit-margin').value =
+    item.margin != null ? String(item.margin) : '30';
+  hydrateBuyPriceField('inv-edit-sell', item.sellPrice || 0);
+  document.getElementById('inv-edit-stock').value =
+    item.stock != null ? String(item.stock) : '1';
   document.getElementById('inv-d-created').textContent = item.createdAt || '-';
   panel.className = 'card result-show';
   try {
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (_) {}
+}
+
+function onInvEditBuyInput(ev) {
+  const el = ev.target;
+  const d = digitsOnlyPrice(el.value).slice(0, 15);
+  if (!d) {
+    el.value = '';
+    recalcInvDetailSellFromBuyMargin();
+    return;
+  }
+  el.value = formatWonDigitsString(d);
+  recalcInvDetailSellFromBuyMargin();
+}
+
+function onInvEditSellInput(ev) {
+  const el = ev.target;
+  const d = digitsOnlyPrice(el.value).slice(0, 15);
+  if (!d) {
+    el.value = '';
+    return;
+  }
+  el.value = formatWonDigitsString(d);
+}
+
+function recalcInvDetailSellFromBuyMargin() {
+  const buy = parseBuyPriceEl('inv-edit-buy');
+  const margin = parseFloat(document.getElementById('inv-edit-margin').value) || 0;
+  const sell = Math.round(buy * (1 + margin / 100));
+  hydrateBuyPriceField('inv-edit-sell', sell);
+}
+
+function saveInventoryEdit() {
+  if (selectedInventoryId == null) return;
+  const idx = inventory.findIndex(x => x.id === selectedInventoryId);
+  if (idx < 0) {
+    showToast('항목을 찾을 수 없어요');
+    return;
+  }
+  const name = document.getElementById('inv-edit-name').value.trim();
+  if (!name) {
+    showToast('상품명을 입력해 주세요');
+    return;
+  }
+  const buy = parseBuyPriceEl('inv-edit-buy');
+  const margin = parseFloat(document.getElementById('inv-edit-margin').value) || 30;
+  let sell = parseBuyPriceEl('inv-edit-sell');
+  if (!Number.isFinite(sell) || sell <= 0) {
+    sell = Math.round(buy * (1 + margin / 100));
+  }
+  const stock = Math.max(0, parseInt(String(document.getElementById('inv-edit-stock').value).replace(/\D/g, ''), 10) || 0);
+  const prev = inventory[idx];
+  inventory[idx] = {
+    ...prev,
+    name,
+    brand: (document.getElementById('inv-edit-brand').value || '').trim(),
+    category: (document.getElementById('inv-edit-category').value || '').trim(),
+    bnCode: (document.getElementById('inv-edit-bncode').value || '').trim() || prev.bnCode,
+    barcode: (document.getElementById('inv-edit-barcode').value || '').trim() || prev.barcode,
+    buyPrice: buy,
+    margin,
+    sellPrice: sell,
+    stock
+  };
+  localStorage.setItem('bn_inventory', JSON.stringify(inventory));
+  showToast('재고 정보를 저장했어요');
+  renderInventory();
+  openInventoryDetail(selectedInventoryId);
 }
 
 function closeInventoryDetail() {
@@ -2683,13 +2787,22 @@ function getQrLabelDataUrlForPrint() {
 }
 
 function renderQrLabelWithLib(qrText) {
-  const host = document.getElementById('qr-host');
-  if (!host) return;
   if (typeof QRCode === 'undefined') {
     console.error('QRCode 라이브러리 없음');
     showToast('QR 스크립트 로드 실패. 새로고침 후 다시 시도해 주세요.');
     return;
   }
+  const wrap = document.querySelector('#create-qr-block .qr-wrap');
+  if (!wrap) return;
+
+  const fresh = document.createElement('div');
+  fresh.id = 'qr-host';
+  fresh.style.cssText = 'display:inline-block;min-width:40px;min-height:40px';
+  const oldHost = document.getElementById('qr-host');
+  if (oldHost) wrap.replaceChild(fresh, oldHost);
+  else wrap.appendChild(fresh);
+  qrLabelInstance = null;
+
   const qrBlock = document.getElementById('create-qr-block');
   let restore = null;
   if (qrBlock) {
@@ -2706,13 +2819,6 @@ function renderQrLabelWithLib(qrText) {
     }
   }
   try {
-    if (qrLabelInstance && typeof qrLabelInstance.clear === 'function') {
-      try {
-        qrLabelInstance.clear();
-      } catch (_) {}
-    }
-    qrLabelInstance = null;
-    host.innerHTML = '';
     const level = QRCode.CorrectLevel ? QRCode.CorrectLevel.H : undefined;
     const opts = {
       text: String(qrText),
@@ -2722,13 +2828,17 @@ function renderQrLabelWithLib(qrText) {
       colorLight: '#ffffff'
     };
     if (level != null) opts.correctLevel = level;
-    qrLabelInstance = new QRCode(host, opts);
+    qrLabelInstance = new QRCode(fresh, opts);
   } catch (e) {
     console.error(e);
     showToast('QR 그리기 실패: ' + (e && e.message ? e.message : String(e)));
   } finally {
-    if (typeof restore === 'function') restore();
-    else updateCreateOutputVisibility();
+    const finishLayout = () => {
+      if (typeof restore === 'function') restore();
+      else updateCreateOutputVisibility();
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(finishLayout);
+    else setTimeout(finishLayout, 0);
   }
 }
 
