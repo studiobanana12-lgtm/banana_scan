@@ -6,8 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>🍌 바나나 스캔</title>
-<script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
-<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
@@ -894,13 +893,76 @@ function switchTab(tab) {
 // ===== 바코드 스캔 =====
 function setScanMode(mode) {
   scanMode = mode;
-  document.getElementById('mode-barcode').style.borderColor = mode === 'barcode' ? 'var(--yellow)' : 'var(--border)';
-  document.getElementById('mode-barcode').style.color = mode === 'barcode' ? 'var(--yellow)' : 'var(--text2)';
-  document.getElementById('mode-qr').style.borderColor = mode === 'qr' ? 'var(--yellow)' : 'var(--border)';
-  document.getElementById('mode-qr').style.color = mode === 'qr' ? 'var(--yellow)' : 'var(--text2)';
-  document.getElementById('mode-both').style.borderColor = mode === 'both' ? 'var(--yellow)' : 'var(--border)';
-  document.getElementById('mode-both').style.color = mode === 'both' ? 'var(--yellow)' : 'var(--text2)';
-  if (scanActive) { stopScan(); startScan(); }
+  ['barcode','qr','both'].forEach(m => {
+    const btn = document.getElementById('mode-' + m);
+    btn.style.borderColor = m === mode ? 'var(--yellow)' : 'var(--border)';
+    btn.style.color = m === mode ? 'var(--yellow)' : 'var(--text2)';
+  });
+  if (scanActive) { stopScan(); setTimeout(startScan, 300); }
+}
+
+function startScan() {
+  if (scanActive) return;
+  scanActive = true;
+  document.getElementById('btn-scan-start').style.display = 'none';
+  document.getElementById('btn-scan-stop').style.display = 'flex';
+  document.getElementById('scan-status').textContent = '카메라 시작 중...';
+
+  const container = document.getElementById('interactive');
+  container.innerHTML = '<div id="qr-reader" style="width:100%;height:100%"></div>';
+
+  const config = {
+    fps: 15,
+    qrbox: { width: 250, height: 150 },
+    aspectRatio: 1.0,
+    formatsToSupport: scanMode === 'qr'
+      ? [Html5QrcodeSupportedFormats.QR_CODE]
+      : scanMode === 'barcode'
+      ? [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E
+        ]
+      : undefined
+  };
+
+  const scanner = new Html5Qrcode('qr-reader');
+  zxingReader = scanner;
+
+  scanner.start(
+    { facingMode: 'environment' },
+    config,
+    (decodedText) => {
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      stopScan();
+      onBarcodeDetected(decodedText);
+    },
+    (err) => {}
+  ).then(() => {
+    document.getElementById('scan-status').textContent =
+      scanMode === 'qr' ? 'QR코드를 비춰주세요' :
+      scanMode === 'both' ? '바코드 또는 QR을 비춰주세요' :
+      '바코드를 비춰주세요';
+  }).catch(err => {
+    showToast('카메라 오류: ' + err);
+    stopScan();
+  });
+}
+
+function stopScan() {
+  scanActive = false;
+  try {
+    if (zxingReader && typeof zxingReader.stop === 'function') {
+      zxingReader.stop().catch(() => {});
+      zxingReader = null;
+    }
+  } catch(e) {}
+  document.getElementById('btn-scan-start').style.display = 'flex';
+  document.getElementById('btn-scan-stop').style.display = 'none';
+  document.getElementById('scan-status').textContent = '스캔 대기 중...';
 }
 
 function startScan() {
@@ -1007,7 +1069,7 @@ function startScan() {
 
 function stopScan() {
   scanActive = false;
-  try { Quagga.stop(); } catch(e) {}
+  
   try {
     if (zxingReader) { zxingReader.reset(); zxingReader = null; }
     const container = document.getElementById('interactive');
