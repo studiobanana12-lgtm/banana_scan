@@ -9,7 +9,7 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root {
   --bg: #0d0d1a;
@@ -832,7 +832,7 @@ input:focus { border-color: var(--yellow); }
         <div class="card">
           <div class="card-title">QR 코드</div>
           <div class="qr-wrap">
-            <canvas id="qr-canvas"></canvas>
+            <div id="qr-host" style="display:inline-block;min-width:40px;min-height:40px"></div>
           </div>
         </div>
         </div>
@@ -1085,6 +1085,7 @@ let scanPreviewStream = null;
 let scanStarting = false;
 let scanMediaAbort = null;
 let scanDecodeBusy = false;
+let qrLabelInstance = null;
 
 const BN_CAM = {
   facing: 'bn_cam_facing',
@@ -2666,6 +2667,71 @@ function generateBarcode() {
   renderBarcodeScreen();
 }
 
+function getQrLabelDataUrlForPrint() {
+  const host = document.getElementById('qr-host');
+  if (!host) return '';
+  const img = host.querySelector('img');
+  if (img && img.src && img.src.indexOf('data:') === 0) return img.src;
+  if (img && img.src) return img.src;
+  const cv = host.querySelector('canvas');
+  if (cv && typeof cv.toDataURL === 'function') {
+    try {
+      return cv.toDataURL('image/png');
+    } catch (_) {}
+  }
+  return '';
+}
+
+function renderQrLabelWithLib(qrText) {
+  const host = document.getElementById('qr-host');
+  if (!host) return;
+  if (typeof QRCode === 'undefined') {
+    console.error('QRCode 라이브러리 없음');
+    showToast('QR 스크립트 로드 실패. 새로고침 후 다시 시도해 주세요.');
+    return;
+  }
+  const qrBlock = document.getElementById('create-qr-block');
+  let restore = null;
+  if (qrBlock) {
+    const hidden = window.getComputedStyle(qrBlock).display === 'none';
+    if (hidden) {
+      const prev = qrBlock.getAttribute('style') || '';
+      qrBlock.style.cssText =
+        'display:block!important;position:fixed;left:-9999px;top:0;visibility:hidden;width:280px;height:280px;';
+      restore = () => {
+        if (prev) qrBlock.setAttribute('style', prev);
+        else qrBlock.removeAttribute('style');
+        updateCreateOutputVisibility();
+      };
+    }
+  }
+  try {
+    if (qrLabelInstance && typeof qrLabelInstance.clear === 'function') {
+      try {
+        qrLabelInstance.clear();
+      } catch (_) {}
+    }
+    qrLabelInstance = null;
+    host.innerHTML = '';
+    const level = QRCode.CorrectLevel ? QRCode.CorrectLevel.H : undefined;
+    const opts = {
+      text: String(qrText),
+      width: 200,
+      height: 200,
+      colorDark: '#000000',
+      colorLight: '#ffffff'
+    };
+    if (level != null) opts.correctLevel = level;
+    qrLabelInstance = new QRCode(host, opts);
+  } catch (e) {
+    console.error(e);
+    showToast('QR 그리기 실패: ' + (e && e.message ? e.message : String(e)));
+  } finally {
+    if (typeof restore === 'function') restore();
+    else updateCreateOutputVisibility();
+  }
+}
+
 function registerFromScan() {
   if (!currentProduct) { showToast('먼저 스캔해주세요'); return; }
 
@@ -2707,16 +2773,18 @@ function renderBarcodeScreen() {
   document.getElementById('barcode-display-num').textContent = code;
   document.getElementById('barcode-display-name').textContent = p.name || '';
 
-  const qrData = JSON.stringify({ bn: code, name: p.name, price: p.sellPrice || 0 });
-  QRCode.toCanvas(document.getElementById('qr-canvas'), qrData, { width: 160, margin: 2 }, err => {
-    if (err) console.error(err);
-    updateCreateOutputVisibility();
-    updateCreatePrintButtonText();
-  });
+  const bcName = document.getElementById('bc-name');
+  const bcCode = document.getElementById('bc-code');
+  const bcPrice = document.getElementById('bc-price');
+  if (bcName) bcName.textContent = (p.name && String(p.name).trim()) ? String(p.name).trim() : '-';
+  if (bcCode) bcCode.textContent = code;
+  if (bcPrice) {
+    const sp = Number(p.sellPrice);
+    bcPrice.textContent = Number.isFinite(sp) && sp > 0 ? sp.toLocaleString('ko-KR') + '원' : '-';
+  }
 
-  document.getElementById('bc-name').textContent = p.name || '-';
-  document.getElementById('bc-code').textContent = code;
-  document.getElementById('bc-price').textContent = p.sellPrice ? p.sellPrice.toLocaleString() + '원' : '-';
+  const qrData = JSON.stringify({ bn: code, name: p.name || '', price: p.sellPrice || 0 });
+  renderQrLabelWithLib(qrData);
 
   updateCreateOutputVisibility();
   updateCreatePrintButtonText();
@@ -2738,16 +2806,17 @@ function printBarcode() {
   }
 
   if (createOutputMode === 'qr') {
-    const canvas = document.getElementById('qr-canvas');
-    if (!canvas || typeof canvas.toDataURL !== 'function') {
-      showToast('QR 캔버스를 찾을 수 없어요');
-      return;
+    let dataUrl = getQrLabelDataUrlForPrint();
+    if (!dataUrl) {
+      renderQrLabelWithLib(JSON.stringify({
+        bn: code,
+        name: name,
+        price: currentProduct.sellPrice || 0
+      }));
+      dataUrl = getQrLabelDataUrlForPrint();
     }
-    let dataUrl = '';
-    try {
-      dataUrl = canvas.toDataURL('image/png');
-    } catch (e) {
-      showToast('QR 이미지를 만들 수 없어요');
+    if (!dataUrl) {
+      showToast('QR 이미지가 없어요. 생성 탭에서 라벨을 다시 만들어 주세요.');
       return;
     }
     const safeName = escapeHtml(name);
