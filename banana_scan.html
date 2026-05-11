@@ -348,8 +348,40 @@ input:focus { border-color: var(--yellow); }
   border-bottom: 0.5px solid var(--border);
 }
 .ai-row:last-child { border-bottom: none; }
-.ai-key { font-size: 13px; color: var(--text3); }
+.ai-key { font-size: 13px; color: var(--text3); flex-shrink: 0; }
 .ai-val { font-size: 13px; color: var(--text); font-weight: 500; text-align: right; max-width: 60%; }
+.ai-row-input { align-items: stretch; gap: 10px; }
+.ai-edit {
+  flex: 1;
+  min-width: 0;
+  max-width: 68%;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  outline: none;
+}
+.won-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.won-field .won-input {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+.won-suffix {
+  font-size: 13px;
+  color: var(--text3);
+  flex-shrink: 0;
+  user-select: none;
+}
 
 /* 바코드 생성 */
 .barcode-wrap {
@@ -636,7 +668,11 @@ input:focus { border-color: var(--yellow); }
             </div>
             <div class="price-box">
               <div class="price-label">매입가 입력</div>
-              <input type="number" id="scan-buy-price" placeholder="0" style="margin-top:2px" onchange="calcMargin('scan')">
+              <div class="won-field">
+                <input type="text" class="won-input" inputmode="numeric" id="scan-buy-price" placeholder="0" autocomplete="off" aria-label="매입가"
+                  oninput="onBuyPriceInput(event,'scan')" onchange="calcMargin('scan')">
+                <span class="won-suffix">원</span>
+              </div>
             </div>
           </div>
 
@@ -710,25 +746,26 @@ input:focus { border-color: var(--yellow); }
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:14px;height:14px;stroke:currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             AI 분석 결과
           </div>
+          <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px;line-height:1.45">아래 항목은 탭하여 <strong>직접 수정</strong>할 수 있어요.</p>
           <div class="ai-rows">
-            <div class="ai-row">
+            <div class="ai-row ai-row-input">
               <span class="ai-key">상품명</span>
-              <span class="ai-val" id="ai-name">-</span>
+              <input type="text" class="ai-edit" id="ai-name" value="" autocomplete="off" placeholder="상품명" onblur="updateAiNaverShoppingLinkFromAiFields()">
             </div>
-            <div class="ai-row">
+            <div class="ai-row ai-row-input">
               <span class="ai-key">브랜드</span>
-              <span class="ai-val" id="ai-brand">-</span>
+              <input type="text" class="ai-edit" id="ai-brand" value="" autocomplete="off" placeholder="브랜드">
             </div>
-            <div class="ai-row">
+            <div class="ai-row ai-row-input">
               <span class="ai-key">카테고리</span>
-              <span class="ai-val" id="ai-category">-</span>
+              <input type="text" class="ai-edit" id="ai-category" value="" autocomplete="off" placeholder="카테고리">
             </div>
-            <div class="ai-row">
+            <div class="ai-row ai-row-input">
               <span class="ai-key">규격/모델</span>
-              <span class="ai-val" id="ai-spec">-</span>
+              <input type="text" class="ai-edit" id="ai-spec" value="" autocomplete="off" placeholder="규격·모델" onblur="updateAiNaverShoppingLinkFromAiFields()">
             </div>
             <div class="ai-row">
-              <span class="ai-key">네이버 최저가</span>
+              <span class="ai-key">네이버 쇼핑</span>
               <span class="ai-val" id="ai-naver-price" style="color:var(--yellow)">조회 중...</span>
             </div>
           </div>
@@ -739,7 +776,11 @@ input:focus { border-color: var(--yellow); }
           <div class="price-grid">
             <div class="input-group" style="margin:0">
               <div class="input-label">매입가</div>
-              <input type="number" id="ai-buy-price" placeholder="0" onchange="calcMargin('ai')">
+              <div class="won-field">
+                <input type="text" class="won-input" inputmode="numeric" id="ai-buy-price" placeholder="0" autocomplete="off" aria-label="매입가"
+                  oninput="onBuyPriceInput(event,'ai')" onchange="calcMargin('ai')">
+                <span class="won-suffix">원</span>
+              </div>
             </div>
             <div class="input-group" style="margin:0">
               <div class="input-label">마진율 %</div>
@@ -752,9 +793,10 @@ input:focus { border-color: var(--yellow); }
           </div>
         </div>
 
-        <div class="btn-row">
-          <button class="btn btn-secondary" onclick="retakePhoto()">다시 촬영</button>
-          <button class="btn btn-primary" onclick="generateBarcode()">바코드 생성</button>
+        <div class="btn-row" style="flex-direction:column;align-items:stretch;gap:10px">
+          <button type="button" class="btn btn-primary" onclick="generateBarcode()">라벨 만들기 (바코드·QR)</button>
+          <p style="font-size:11px;color:var(--text3);margin:0;line-height:1.45;text-align:center">생성 탭에서 <strong>바코드 라벨</strong> 또는 <strong>QR 라벨</strong>을 고른 뒤 인쇄하면 돼요. 촬영 상품도 동일하게 QR로 만들 수 있어요.</p>
+          <button type="button" class="btn btn-secondary" onclick="retakePhoto()">다시 촬영</button>
         </div>
       </div>
     </div>
@@ -1061,6 +1103,70 @@ function escapeHtml(s) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function digitsOnlyPrice(s) {
+  return String(s == null ? '' : s).replace(/\D/g, '');
+}
+
+function parseBuyPriceEl(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return 0;
+  const d = digitsOnlyPrice(el.value).slice(0, 15);
+  if (!d) return 0;
+  const n = parseInt(d, 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatWonDigitsString(d) {
+  if (!d) return '';
+  const n = parseInt(d, 10);
+  if (!Number.isFinite(n)) return '';
+  return n.toLocaleString('ko-KR');
+}
+
+function onBuyPriceInput(ev, src) {
+  const el = ev.target;
+  const d = digitsOnlyPrice(el.value).slice(0, 15);
+  if (!d) {
+    el.value = '';
+    calcMargin(src);
+    return;
+  }
+  el.value = formatWonDigitsString(d);
+  calcMargin(src);
+}
+
+function hydrateBuyPriceField(elementId, value) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const n = Math.round(Number(value)) || 0;
+  el.value = n > 0 ? n.toLocaleString('ko-KR') : '';
+}
+
+function readPhotoAiFieldsIntoCurrentProduct() {
+  const nameEl = document.getElementById('ai-name');
+  if (!nameEl || nameEl.tagName !== 'INPUT' || !currentProduct) return;
+  currentProduct.name = (nameEl.value || '').trim();
+  const b = document.getElementById('ai-brand');
+  const c = document.getElementById('ai-category');
+  const s = document.getElementById('ai-spec');
+  currentProduct.brand = b ? (b.value || '').trim() : '';
+  currentProduct.category = c ? (c.value || '').trim() : '';
+  currentProduct.spec = s ? (s.value || '').trim() : '';
+}
+
+function updateAiNaverShoppingLinkFromAiFields() {
+  const nameEl = document.getElementById('ai-name');
+  const specEl = document.getElementById('ai-spec');
+  const box = document.getElementById('ai-naver-price');
+  if (!nameEl || !box) return;
+  const q =
+    (nameEl.value || '').trim() ||
+    (specEl && (specEl.value || '').trim()) ||
+    '상품';
+  box.innerHTML =
+    `<a href="https://search.shopping.naver.com/search/all?query=${encodeURIComponent(q)}" target="_blank" rel="noopener" style="color:var(--yellow);font-size:13px">네이버 가격비교 →</a>`;
 }
 
 function isPcWebcamMode() {
@@ -2314,12 +2420,13 @@ function resetScan() {
   document.getElementById('scan-result').className = 'result-hidden';
   document.getElementById('scan-status').textContent = '스캔 대기 중...';
   document.getElementById('scan-status').className = 'scan-status';
+  hydrateBuyPriceField('scan-buy-price', 0);
   currentProduct = null;
 }
 
 // ===== 마진 계산 =====
 function calcMargin(src) {
-  const buy = parseFloat(document.getElementById(src + '-buy-price').value) || 0;
+  const buy = parseBuyPriceEl(src + '-buy-price');
   const margin = parseFloat(document.getElementById(src + '-margin').value) || 30;
   const sell = Math.round(buy * (1 + margin / 100));
   const profit = sell - buy;
@@ -2361,6 +2468,13 @@ function retakePhoto() {
   document.getElementById('photo-zone').style.display = 'block';
   document.getElementById('ai-result').className = 'result-hidden';
   document.getElementById('photo-input').value = '';
+  hydrateBuyPriceField('ai-buy-price', 0);
+  ['ai-name', 'ai-brand', 'ai-category', 'ai-spec'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.tagName === 'INPUT') el.value = '';
+  });
+  const nav = document.getElementById('ai-naver-price');
+  if (nav) nav.textContent = '—';
   currentProduct = null;
 }
 
@@ -2408,19 +2522,27 @@ async function analyzeWithGemini(dataUrl) {
     const parsed = JSON.parse(clean);
 
     document.getElementById('ai-loading').className = 'loading';
-    document.getElementById('ai-name').textContent = parsed.product_name || '-';
-    document.getElementById('ai-brand').textContent = parsed.brand || '-';
-    document.getElementById('ai-category').textContent = parsed.category || '-';
-    document.getElementById('ai-spec').textContent = parsed.spec || '-';
-    document.getElementById('ai-naver-price').innerHTML =
-      `<a href="https://search.shopping.naver.com/search/all?query=${encodeURIComponent(parsed.search_keyword || parsed.product_name)}" target="_blank" style="color:var(--yellow);font-size:13px">네이버에서 확인 →</a>`;
+    const name = parsed.product_name || '';
+    const brandRaw = String(parsed.brand || '').trim();
+    const brand = brandRaw && brandRaw.toLowerCase() !== 'unknown' ? brandRaw : '';
+    const catRaw = String(parsed.category || '').trim();
+    const cat = catRaw && catRaw.toLowerCase() !== 'unknown' ? catRaw : '';
+    const specRaw = String(parsed.spec || '').trim();
+    const spec =
+      specRaw && !/^(없음|none|n\/a|unknown)$/i.test(specRaw) ? specRaw : '';
+
+    document.getElementById('ai-name').value = name;
+    document.getElementById('ai-brand').value = brand;
+    document.getElementById('ai-category').value = cat;
+    document.getElementById('ai-spec').value = spec;
     document.getElementById('ai-result').className = 'result-show';
+    updateAiNaverShoppingLinkFromAiFields();
 
     currentProduct = {
-      name: parsed.product_name,
-      brand: parsed.brand,
-      category: parsed.category,
-      spec: parsed.spec,
+      name: name || '이름 없음',
+      brand,
+      category: cat,
+      spec,
       source: 'photo'
     };
 
@@ -2527,8 +2649,10 @@ function loadInventoryItemToCreate() {
 // ===== 바코드 생성 =====
 function generateBarcode() {
   if (!currentProduct) { showToast('먼저 상품을 인식해주세요'); return; }
+  readPhotoAiFieldsIntoCurrentProduct();
+  if (!currentProduct.name) currentProduct.name = '이름 없음';
 
-  const buy = parseFloat(document.getElementById('ai-buy-price').value) || 0;
+  const buy = parseBuyPriceEl('ai-buy-price');
   const margin = parseFloat(document.getElementById('ai-margin').value) || 30;
   const sell = Math.round(buy * (1 + margin / 100));
   currentProduct.buyPrice = buy;
@@ -2545,7 +2669,7 @@ function generateBarcode() {
 function registerFromScan() {
   if (!currentProduct) { showToast('먼저 스캔해주세요'); return; }
 
-  const buy = parseFloat(document.getElementById('scan-buy-price').value) || 0;
+  const buy = parseBuyPriceEl('scan-buy-price');
   const margin = parseFloat(document.getElementById('scan-margin').value) || 30;
   const sell = Math.round(buy * (1 + margin / 100));
   currentProduct.buyPrice = buy;
