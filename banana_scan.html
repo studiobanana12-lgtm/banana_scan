@@ -3927,10 +3927,43 @@ function updateGoogleConnectButton() {
   }
 }
 
-function checkOAuthRedirectToken() {}
+function isLocalhost() {
+  return location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+}
+
+function checkOAuthRedirectToken() {
+  const hash = window.location.hash.substring(1);
+  if (!hash) return;
+  const params = new URLSearchParams(hash);
+  const token = params.get('access_token');
+  const expiresIn = params.get('expires_in');
+  const state = params.get('state');
+  if (token && state === 'gauth') {
+    gAccessToken = token;
+    gTokenExpiry = Date.now() + ((Number(expiresIn) || 3600) - 60) * 1000;
+    history.replaceState(null, '', window.location.pathname);
+    updateGoogleConnectButton();
+    const status = document.getElementById('gas-status');
+    if (status) { status.textContent = '✅ Google 연결됨 · 재고 탭에서 동기화하세요'; status.style.color = 'var(--green)'; }
+    showToast('Google 계정에 연결됐어요');
+  }
+}
 
 async function requestGoogleToken(promptParam) {
   if (!GOOGLE_CLIENT_ID) throw new Error('개발자 설정 필요: 코드 상단의 GOOGLE_CLIENT_ID를 입력해주세요');
+  // 로컬호스트: 팝업, HTTPS(GitHub Pages 등): 리다이렉트
+  if (!isLocalhost()) {
+    const params = new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: window.location.origin + window.location.pathname,
+      response_type: 'token',
+      scope: 'https://www.googleapis.com/auth/spreadsheets',
+      include_granted_scopes: 'true',
+      state: 'gauth'
+    });
+    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+    return new Promise(() => {});
+  }
   if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
     throw new Error('Google 라이브러리 로딩 중이에요. 잠시 후 다시 시도해 주세요.');
   }
